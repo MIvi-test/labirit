@@ -1,7 +1,10 @@
-#include "deter.h"
-
+#include <stdlib.h>
+#include <time.h>
 
 int main()
 {
-    printf("hello world");
+    srand(10);
+    int a = rand();
+    int b = rand();
+    int c = rand();
 }
