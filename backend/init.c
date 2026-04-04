@@ -13,7 +13,7 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
     table.seed = seed;
     table.data = NULL;
     Cell **data = (Cell **)malloc(columns * sizeof(Cell *));
-    if (!table)
+    if (!data)
     {
         return table;
     }
@@ -44,11 +44,11 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
 
 void CLEAR_TABLE(TABLE *table)
 {
-    for(int j = 0; j < (*table)->columns; j++)
+    for(int j = 0; j < table->columns; j++)
     {
-        free((*table).data[j]);
+        free(table->data[j]);
     }
-    free((*table).data);
-    (*table).data = NULL;
+    free(table->data);
+    table->data = NULL;
     return;
 }
