@@ -26,6 +26,7 @@ typedef struct
     int rows;
     int columns;
     int seed;
+
 } TABLE;
 
 #endif // DETER_H

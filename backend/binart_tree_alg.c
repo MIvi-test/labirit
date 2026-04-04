@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "deter.h"
+#include "../deter.h"
 
 void binary_algos(TABLE table)
 {

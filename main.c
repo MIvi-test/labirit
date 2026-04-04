@@ -3,8 +3,6 @@
 
 int main()
 {
-    srand(10);
-    int a = rand();
-    int b = rand();
-    int c = rand();
+    // тут кому-то надо совместить логику двух приложений
+    // вызов функций из frontend и связь с backend 
 }

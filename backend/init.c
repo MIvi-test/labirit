@@ -1,4 +1,4 @@
-#include "deter.h"
+#include "../deter.h"
 
 TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
 {
@@ -8,10 +8,14 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
     */
     srand(seed);
     TABLE table;
+    table.columns = columns;
+    table.rows = rows;
+    table.seed = seed;
+    table.data = NULL;
     Cell **data = (Cell **)malloc(columns * sizeof(Cell *));
     if (!table)
     {
-        return false;
+        return table;
     }
     for (int j = 0; j < columns; j++)
     {
@@ -23,7 +27,7 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
                 free(data[er]);
             }
             free(data);
-            return false;
+            return table;
         }
         data[j] = p;
         for (int i = 0; i < rows; i++)
@@ -33,10 +37,8 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
             data[j][i] = obj;
         }
     }
-    table.columns = columns;
-    table.rows = rows;
-    table.seed = seed;
     table.data = data;
+
     return table;
 }
 
