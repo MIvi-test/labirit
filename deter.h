@@ -7,4 +7,5 @@
 #include <stdbool.h>
 #include <string.h>
 
+
 #endif // DETER_H
