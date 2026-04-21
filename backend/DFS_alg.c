@@ -52,8 +52,8 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
        3 1
         2
     */
-   int new_x = x;
-   int new_y = y;
+    int new_x = x;
+    int new_y = y;
     switch (r % 4)
     {
     case 3:
@@ -61,7 +61,7 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
         {
             table.data[y][x].wall.left = 0;
             table.data[y][x - 1].wall.right = 0;
-            new_x = x-1;
+            new_x = x - 1;
             break;
         }
     case 2:
@@ -69,7 +69,7 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
         {
             table.data[y][x].wall.bottom = 0;
             table.data[y + 1][x].wall.top = 0;
-            new_y = y+1;
+            new_y = y + 1;
             break;
         }
     case 1:
@@ -77,7 +77,7 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
         {
             table.data[y][x].wall.right = 0;
             table.data[y][x + 1].wall.left = 0;
-            new_x = x+1;
+            new_x = x + 1;
             break;
         }
     case 0:
@@ -85,9 +85,8 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
         {
             table.data[y][x].wall.top = 0;
             table.data[y - 1][x].wall.bottom = 0;
-            new_y = y-1;
+            new_y = y - 1;
             break;
-
         }
     default:
         if (!pop(path, &new_x, &new_y))
@@ -102,7 +101,7 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
         printf("ну тут память надо почистить мб, хз, подумаю ещё");
         return;
     }
-    dfs_reallisation(table,path,new_x,new_y,visited);
+    dfs_reallisation(table, path, new_x, new_y, visited);
 }
 
 bool DFS_alg(TABLE table)
@@ -142,19 +141,18 @@ bool DFS_alg(TABLE table)
     }
 
     dfs_reallisation(table, &path, start_x, start_y, visited);
-    while(pop(&path,NULL,NULL))
+    while (pop(&path, NULL, NULL))
     {
         ;
     }
-    for(int n = 0; n < table.columns; n++)
+    for (int n = 0; n < table.columns; n++)
     {
         free(visited[n]);
     }
     free(visited);
-    
+
     return true;
 }
-
 
 // тут можно заменить хеш таблицу на на линейный список, и тогда с О(1) будет О(n) по времени
 // пространственная сложность сохранится.
