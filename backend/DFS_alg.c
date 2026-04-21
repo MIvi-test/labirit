@@ -90,14 +90,14 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
 
         }
     default:
-        if (!pop(path, &new_x, &new_y))
+        if (!pop(&path, &new_x, &new_y))
         {
             // значит всё готово
             return;
         }
     }
     visited[y][x] = true;
-    if (!push(path, x, y))
+    if (!push(&path, x, y))
     {
         printf("ну тут память надо почистить мб, хз, подумаю ещё");
         return;
