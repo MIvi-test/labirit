@@ -62,7 +62,7 @@ massive pop_bind()
         cur = temp;
         temp = temp->before;
     }
-    if(temp == GLOBAL_BIND_PTR)
+    if (temp == GLOBAL_BIND_PTR)
     {
         GLOBAL_BIND_PTR = temp->before;
     }
