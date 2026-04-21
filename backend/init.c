@@ -12,14 +12,17 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
     table.rows = rows;
     table.seed = seed;
     table.data = NULL;
-    Cell **data = (Cell **)malloc(columns * sizeof(Cell *));
+
+
+    Cell **data = (Cell **)malloc(rows * sizeof(Cell *));
+
     if (!data)
     {
         return table;
     }
-    for (int j = 0; j < columns; j++)
+    for (int j = 0; j < rows; j++)
     {
-        Cell *p = (Cell *)malloc(rows * sizeof(Cell));
+        Cell *p = (Cell *)malloc(columns * sizeof(Cell));
         if (!p)
         {
             for (int er = j - 1; er >= 0; er--)
@@ -30,10 +33,10 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
             return table;
         }
         data[j] = p;
-        for (int i = 0; i < rows; i++)
+        for (int i = 0; i < columns; i++)
         {
             Cell obj;
-            obj.all_bits = 0xFF; // 0b11111111
+            obj.all_bits = 0xFF;
             data[j][i] = obj;
         }
     }

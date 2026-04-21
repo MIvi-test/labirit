@@ -43,7 +43,7 @@ bool pop(stack **path, int *x, int *y)
     return true;
 }
 
-void dfs_reallisation(TABLE table, stack *path, int x, int y, int **visited)
+void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
 {
 
     int r = rand();
@@ -95,7 +95,6 @@ void dfs_reallisation(TABLE table, stack *path, int x, int y, int **visited)
             // значит всё готово
             return;
         }
-        break;
     }
     visited[y][x] = true;
     if (!push(&path, x, y))
@@ -129,7 +128,7 @@ bool DFS_alg(TABLE table)
     }
     for (int j = 0; j < table.columns; j++)
     {
-        bool *row = (bool *)calloc(table.rows, sizeof(bool *));
+        bool *row = (bool *)calloc(table.rows, sizeof(bool));
         if (!row)
         {
             for (int n = j - 1; n >= 0; n--)
@@ -142,8 +141,8 @@ bool DFS_alg(TABLE table)
         visited[j] = row;
     }
 
-    dfs_reallisation(table, path, start_x, start_y, visited);
-    while(pop(*path,NULL,NULL))
+    dfs_reallisation(table, &path, start_x, start_y, visited);
+    while(pop(&path,NULL,NULL))
     {
         ;
     }
@@ -155,3 +154,7 @@ bool DFS_alg(TABLE table)
     
     return true;
 }
+
+
+// тут можно заменить хеш таблицу на на линейный список, и тогда с О(1) будет О(n) по времени
+// пространственная сложность сохранится.

@@ -9,7 +9,7 @@
 
 typedef union
 {
-    signed char all_bits;
+    unsigned char all_bits;
     struct
     {
         unsigned char top : 1;
