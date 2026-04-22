@@ -1,6 +1,6 @@
 #include "../deter.h"
 
-void reqursive_alg(TABLE table)
+void recursive_division_algorithm(MazeTable table)
 {
     if (table.columns <= 1)
     {
@@ -24,7 +24,6 @@ void reqursive_alg(TABLE table)
                 table.data[j][x + 1].wall.left = 0;
             }
         }
-        // пусть это вертикаль, axis 1
     }
     else
     {
@@ -40,22 +39,21 @@ void reqursive_alg(TABLE table)
                 table.data[y + 1][i].wall.top = 0;
             }
         }
-        // пусть это горизонталь, axis 0
     }
-    TABLE new_table = table;
+    MazeTable new_table = table;
     if (rand() & 2)
     {
         new_table.columns /= 2;
-        reqursive_alg(new_table);
+        recursive_division_algorithm(new_table);
         new_table.data + new_table.columns;
-        reqursive_alg(new_table);
+        recursive_division_algorithm(new_table);
     }
     else
     {
         new_table.rows /= 2;
-        reqursive_alg(new_table);
+        recursive_division_algorithm(new_table);
         new_table.data + new_table.rows;
-        reqursive_alg(new_table);
+        recursive_division_algorithm(new_table);
     }
     return;
 }

@@ -110,7 +110,7 @@ bool in_visited(int x, int y)
     return false;
 }
 
-void remove_wall(TABLE table, massive bind)
+void remove_wall(MazeTable table, massive bind)
 {
     if (bind.x2 - bind.x1 == 1)
     {
@@ -134,7 +134,7 @@ void remove_wall(TABLE table, massive bind)
     }
 }
 
-void prim_alg(TABLE table)
+void prim_alg(MazeTable table)
 {
     add_visit(0, 0);
     add_bind(0, 0, 0, 1);

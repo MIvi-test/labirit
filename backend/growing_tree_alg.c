@@ -1,6 +1,6 @@
 #include "../deter.h"
 
-static void growing_tree_remove_wall(TABLE table, int x1, int y1, int x2, int y2)
+static void growing_tree_remove_wall(MazeTable table, int x1, int y1, int x2, int y2)
 {
     if (x2 - x1 == 1)
     {
@@ -24,7 +24,7 @@ static void growing_tree_remove_wall(TABLE table, int x1, int y1, int x2, int y2
     }
 }
 
-void growing_tree_alg(TABLE table)
+void growing_tree_alg(MazeTable table)
 {
     if (!table.data || table.rows <= 0 || table.columns <= 0)
     {

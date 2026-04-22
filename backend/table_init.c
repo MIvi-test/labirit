@@ -1,18 +1,13 @@
 #include "../deter.h"
 
-TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
+MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
 {
-    /*Инициализация массива, создается указатель на массив указателей(стобцов)
-    цикл инициализации массивов клеток, размер одного массива = количество строк
-    все значение обязательно неотрицательны, результат в указателе TABLE
-    */
     srand(seed);
-    TABLE table;
+    MazeTable table;
     table.columns = columns;
     table.rows = rows;
     table.seed = seed;
     table.data = NULL;
-
 
     Cell **data = (Cell **)malloc(rows * sizeof(Cell *));
 
@@ -45,9 +40,14 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
     return table;
 }
 
-void CLEAR_TABLE(TABLE *table)
+void clear_table(MazeTable *table)
 {
-    for(int j = 0; j < table->columns; j++)
+    if (!table || !table->data)
+    {
+        return;
+    }
+
+    for (int j = 0; j < table->rows; j++)
     {
         free(table->data[j]);
     }

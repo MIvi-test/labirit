@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "../deter.h"
 
-void binary_algos(TABLE table)
+void binary_algos(MazeTable table)
 {
 
     for (int axis = 0; axis < 2; axis++)

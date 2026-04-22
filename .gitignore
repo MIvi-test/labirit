@@ -3,3 +3,4 @@
 Makefile
 test.c
 app.c
+*.json
