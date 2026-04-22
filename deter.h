@@ -29,4 +29,6 @@ typedef struct
 
 } TABLE;
 
+typedef TABLE MazeTable;
+
 #endif // DETER_H

@@ -6,18 +6,18 @@
 #define WATSON_SET_IN_WALK(cell) ((cell).wall.right = 1)
 #define WATSON_CLR_IN_WALK(cell) ((cell).wall.right = 0)
 
-static int watson_idx(TABLE table, int x, int y)
+static int watson_idx(MazeTable table, int x, int y)
 {
     return y * table.columns + x;
 }
 
-static void watson_xy(TABLE table, int index, int *x, int *y)
+static void watson_xy(MazeTable table, int index, int *x, int *y)
 {
     *x = index % table.columns;
     *y = index / table.columns;
 }
 
-static void watson_remove_wall(TABLE table, int x1, int y1, int x2, int y2)
+static void watson_remove_wall(MazeTable table, int x1, int y1, int x2, int y2)
 {
     if (x2 - x1 == 1)
     {
@@ -41,7 +41,7 @@ static void watson_remove_wall(TABLE table, int x1, int y1, int x2, int y2)
     }
 }
 
-static bool watson_has_unvisited(TABLE table, Cell **state)
+static bool watson_has_unvisited(MazeTable table, Cell **state)
 {
     for (int y = 0; y < table.rows; y++)
     {
@@ -56,7 +56,7 @@ static bool watson_has_unvisited(TABLE table, Cell **state)
     return false;
 }
 
-static int watson_take_random_unvisited(TABLE table, Cell **state)
+static int watson_take_random_unvisited(MazeTable table, Cell **state)
 {
     int total = 0;
     for (int y = 0; y < table.rows; y++)
@@ -96,7 +96,7 @@ static int watson_take_random_unvisited(TABLE table, Cell **state)
     return 0;
 }
 
-static int watson_random_neighbour(TABLE table, int x, int y)
+static int watson_random_neighbour(MazeTable table, int x, int y)
 {
     int variants[4];
     int count = 0;
@@ -125,7 +125,7 @@ static int watson_random_neighbour(TABLE table, int x, int y)
     return variants[rand() % count];
 }
 
-void watson_alg(TABLE table)
+void watson_alg(MazeTable table)
 {
     if (!table.data || table.rows <= 0 || table.columns <= 0)
     {

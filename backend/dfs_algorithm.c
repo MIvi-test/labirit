@@ -43,7 +43,7 @@ bool pop(stack **path, int *x, int *y)
     return true;
 }
 
-void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
+void dfs_realization(MazeTable table, stack **path, int x, int y, bool **visited)
 {
 
     int r = rand();
@@ -89,45 +89,34 @@ void dfs_reallisation(TABLE table, stack **path, int x, int y, bool **visited)
             break;
         }
     default:
-        if (!pop(&path, &new_x, &new_y))
+        if (!pop(path, &new_x, &new_y))
         {
-            // значит всё готово
             return;
         }
     }
     visited[y][x] = true;
-    if (!push(&path, x, y))
+    if (!push(path, x, y))
     {
-        printf("ну тут память надо почистить мб, хз, подумаю ещё");
+        printf("memory error during DFS path push");
         return;
     }
-    dfs_reallisation(table, path, new_x, new_y, visited);
+    dfs_realization(table, path, new_x, new_y, visited);
 }
 
-bool DFS_alg(TABLE table)
+bool dfs_algorithm(MazeTable table)
 {
-    /*
- Выбрать любую начальную клетку, отметить ее как посещенную, отправить в стек
- Пока стек не пуст:
- Достать из стека клетку и считать ее текущей
- Если среди четырех клеток, смежных с текущей, имеются те, которые еще не были посещены:
- Отправить текущую клетку в стек
- Случайным образом выбрать одну из соседних непосещенных клеток
- Удалить стенку между текущей и выбранной клеткой
- Отметить выбранную клетку как посещенную и отправить ее в стек
- */
     stack *path = NULL;
     int start_x = 0;
     int start_y = 0;
 
-    bool **visited = (bool **)malloc(sizeof(bool *) * table.columns);
+    bool **visited = (bool **)malloc(sizeof(bool *) * table.rows);
     if (!visited)
     {
         return false;
     }
-    for (int j = 0; j < table.columns; j++)
+    for (int j = 0; j < table.rows; j++)
     {
-        bool *row = (bool *)calloc(table.rows, sizeof(bool));
+        bool *row = (bool *)calloc(table.columns, sizeof(bool));
         if (!row)
         {
             for (int n = j - 1; n >= 0; n--)
@@ -140,12 +129,12 @@ bool DFS_alg(TABLE table)
         visited[j] = row;
     }
 
-    dfs_reallisation(table, &path, start_x, start_y, visited);
+    dfs_realization(table, &path, start_x, start_y, visited);
     while (pop(&path, NULL, NULL))
     {
         ;
     }
-    for (int n = 0; n < table.columns; n++)
+    for (int n = 0; n < table.rows; n++)
     {
         free(visited[n]);
     }
@@ -153,6 +142,3 @@ bool DFS_alg(TABLE table)
 
     return true;
 }
-
-// тут можно заменить хеш таблицу на на линейный список, и тогда с О(1) будет О(n) по времени
-// пространственная сложность сохранится.
