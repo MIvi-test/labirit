@@ -1,144 +1,98 @@
 #include "../deter.h"
 
-typedef struct stack
+bool dfs_algorithm(MazeTable table)
 {
-    int x;
-    int y;
-    struct stack *before;
-} stack;
-
-bool push(stack **path, int x, int y)
-{
-    stack *new_element = malloc(sizeof(stack));
-    if (!new_element)
+    if (!table.data || table.rows <= 0 || table.columns <= 0)
     {
         return false;
     }
 
-    new_element->x = x;
-    new_element->y = y;
-    new_element->before = *path;
-    *path = new_element;
+    int total = table.rows * table.columns;
+    bool *visited = (bool *)calloc((size_t)total, sizeof(bool));
+    int *stack = (int *)malloc(sizeof(int) * (size_t)total);
 
-    return true;
-}
-
-bool pop(stack **path, int *x, int *y)
-{
-    if (!path || !*path)
+    if (!visited || !stack)
     {
+        free(visited);
+        free(stack);
         return false;
     }
 
-    stack *temp = *path;
+    int sp = 0;
+    int start = 0;
+    visited[start] = true;
+    stack[sp++] = start;
 
-    if (x)
-        *x = temp->x;
-    if (y)
-        *y = temp->y;
-
-    *path = temp->before;
-    free(temp);
-
-    return true;
-}
-
-void dfs_realization(MazeTable table, stack **path, int x, int y, bool **visited)
-{
-
-    int r = rand();
-    /*
-        0
-       3 1
-        2
-    */
-    int new_x = x;
-    int new_y = y;
-    switch (r % 4)
+    while (sp > 0)
     {
-    case 3:
-        if (x - 1 >= 0 && visited[y][x - 1] == false)
+        int cur = stack[sp - 1];
+        int x = cur % table.columns;
+        int y = cur / table.columns;
+
+        int neighbors[4];
+        int count = 0;
+
+        if (y > 0)
         {
-            table.data[y][x].wall.left = 0;
-            table.data[y][x - 1].wall.right = 0;
-            new_x = x - 1;
-            break;
+            int next = (y - 1) * table.columns + x;
+            if (!visited[next])
+                neighbors[count++] = next;
         }
-    case 2:
-        if (y + 1 < table.rows && visited[y + 1][x] == false)
+        if (x + 1 < table.columns)
         {
-            table.data[y][x].wall.bottom = 0;
-            table.data[y + 1][x].wall.top = 0;
-            new_y = y + 1;
-            break;
+            int next = y * table.columns + (x + 1);
+            if (!visited[next])
+                neighbors[count++] = next;
         }
-    case 1:
-        if (x + 1 < table.columns && visited[y][x + 1] == false)
+        if (y + 1 < table.rows)
+        {
+            int next = (y + 1) * table.columns + x;
+            if (!visited[next])
+                neighbors[count++] = next;
+        }
+        if (x > 0)
+        {
+            int next = y * table.columns + (x - 1);
+            if (!visited[next])
+                neighbors[count++] = next;
+        }
+
+        if (count == 0)
+        {
+            sp--;
+            continue;
+        }
+
+        int next = neighbors[rand() % count];
+        int nx = next % table.columns;
+        int ny = next / table.columns;
+
+        if (nx == x + 1 && ny == y)
         {
             table.data[y][x].wall.right = 0;
             table.data[y][x + 1].wall.left = 0;
-            new_x = x + 1;
-            break;
         }
-    case 0:
-        if (y - 1 >= 0 && visited[y - 1][x] == false)
+        else if (nx == x - 1 && ny == y)
+        {
+            table.data[y][x].wall.left = 0;
+            table.data[y][x - 1].wall.right = 0;
+        }
+        else if (ny == y + 1 && nx == x)
+        {
+            table.data[y][x].wall.bottom = 0;
+            table.data[y + 1][x].wall.top = 0;
+        }
+        else if (ny == y - 1 && nx == x)
         {
             table.data[y][x].wall.top = 0;
             table.data[y - 1][x].wall.bottom = 0;
-            new_y = y - 1;
-            break;
         }
-    default:
-        if (!pop(path, &new_x, &new_y))
-        {
-            return;
-        }
-    }
-    visited[y][x] = true;
-    if (!push(path, x, y))
-    {
-        printf("memory error during DFS path push");
-        return;
-    }
-    dfs_realization(table, path, new_x, new_y, visited);
-}
 
-bool dfs_algorithm(MazeTable table)
-{
-    stack *path = NULL;
-    int start_x = 0;
-    int start_y = 0;
-
-    bool **visited = (bool **)malloc(sizeof(bool *) * table.rows);
-    if (!visited)
-    {
-        return false;
-    }
-    for (int j = 0; j < table.rows; j++)
-    {
-        bool *row = (bool *)calloc(table.columns, sizeof(bool));
-        if (!row)
-        {
-            for (int n = j - 1; n >= 0; n--)
-            {
-                free(visited[n]);
-            }
-            free(visited);
-            return false;
-        }
-        visited[j] = row;
+        visited[next] = true;
+        stack[sp++] = next;
     }
 
-    dfs_realization(table, &path, start_x, start_y, visited);
-    while (pop(&path, NULL, NULL))
-    {
-        ;
-    }
-    for (int n = 0; n < table.rows; n++)
-    {
-        free(visited[n]);
-    }
+    free(stack);
     free(visited);
-
     return true;
 }

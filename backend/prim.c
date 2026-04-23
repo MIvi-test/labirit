@@ -25,6 +25,16 @@ typedef struct VISITED
 
 Visited *GLOBAL_VISITED_PTR = NULL;
 
+static void destroy_Bind(void)
+{
+    while (GLOBAL_BIND_PTR)
+    {
+        Bind *temp = GLOBAL_BIND_PTR->before;
+        free(GLOBAL_BIND_PTR);
+        GLOBAL_BIND_PTR = temp;
+    }
+}
+
 bool add_bind(int x1, int y1, int x2, int y2)
 {
     Bind *new_element = (Bind *)malloc(sizeof(Bind));
@@ -55,20 +65,27 @@ massive pop_bind()
         return r;
     }
 
-    Bind *cur = GLOBAL_BIND_PTR;
-    Bind *temp = GLOBAL_BIND_PTR;
-    while (rand() % 4 && temp->before != NULL)
+    Bind *prev = NULL;
+    Bind *node = GLOBAL_BIND_PTR;
+
+    while (node->before != NULL && (rand() % 4) != 0)
     {
-        cur = temp;
-        temp = temp->before;
+        prev = node;
+        node = node->before;
     }
-    if (temp == GLOBAL_BIND_PTR)
+
+    r = node->bind;
+
+    if (prev == NULL)
     {
-        GLOBAL_BIND_PTR = temp->before;
+        GLOBAL_BIND_PTR = node->before;
     }
-    r = temp->bind;
-    cur->before = temp->before;
-    free(temp);
+    else
+    {
+        prev->before = node->before;
+    }
+
+    free(node);
     return r;
 }
 
@@ -136,6 +153,9 @@ void remove_wall(MazeTable table, massive bind)
 
 void prim_alg(MazeTable table)
 {
+    destroy_Bind();
+    destroy_Visited();
+
     add_visit(0, 0);
     add_bind(0, 0, 0, 1);
     add_bind(0, 0, 1, 0);
@@ -177,5 +197,7 @@ void prim_alg(MazeTable table)
         }
     } while (GLOBAL_BIND_PTR);
 
+    destroy_Bind();
+    destroy_Visited();
     return;
 }

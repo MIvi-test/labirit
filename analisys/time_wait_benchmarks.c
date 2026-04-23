@@ -2,20 +2,58 @@
 #include "../deter.h"
 #include "benchmark_formats.h"
 #include <stdio.h>
+#ifdef _WIN32
+#include <direct.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include <sys/stat.h>
 #include <time.h>
 
 typedef void (*Generator)(MazeTable);
 
-static int now_milliseconds(void)
+static void dfs_adapter(MazeTable t)
 {
-    return (int)((clock() * 1000) / CLOCKS_PER_SEC);
+    (void)dfs_algorithm(t);
+}
+
+static long long now_microseconds(void)
+{
+#ifdef _WIN32
+    static LARGE_INTEGER freq;
+    static int init = 0;
+    if (!init)
+    {
+        QueryPerformanceFrequency(&freq);
+        init = 1;
+    }
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+    return (long long)((counter.QuadPart * 1000000LL) / freq.QuadPart);
+#else
+    struct timespec ts;
+#if defined(CLOCK_MONOTONIC)
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+#else
+    timespec_get(&ts, TIME_UTC);
+#endif
+    return (long long)ts.tv_sec * 1000000LL + (long long)(ts.tv_nsec / 1000);
+#endif
+}
+
+static int portable_mkdir(const char *path)
+{
+#ifdef _WIN32
+    return _mkdir(path);
+#else
+    return mkdir(path, 0755);
+#endif
 }
 
 bool ensure_results_dir(void)
 {
     struct stat st;
-    if (stat("analisys", &st) != 0 && mkdir("analisys", 0755) != 0)
+    if (stat("analisys", &st) != 0 && portable_mkdir("analisys") != 0)
     {
         return false;
     }
@@ -23,7 +61,7 @@ bool ensure_results_dir(void)
     {
         return true;
     }
-    return mkdir(RESULTS_DIR, 0755) == 0;
+    return portable_mkdir(RESULTS_DIR) == 0;
 }
 
 static bool run_case(FILE *out, Generator generator, int columns, int rows, int seed, bool is_first)
@@ -34,20 +72,20 @@ static bool run_case(FILE *out, Generator generator, int columns, int rows, int 
         return false;
     }
 
-    int started = now_milliseconds();
+    long long started = now_microseconds();
     generator(table);
-    int finished = now_milliseconds();
+    long long finished = now_microseconds();
 
     TimeBenchmarkRow row;
     row.columns = columns;
     row.rows = rows;
     row.seed = seed;
-    row.milliseconds = finished - started;
+    row.microseconds = finished - started;
 
     if (fprintf(out,
-                "%s  {\"columns\":%d,\"rows\":%d,\"seed\":%d,\"milliseconds\":%d}",
+                "%s  {\"columns\":%d,\"rows\":%d,\"seed\":%d,\"microseconds\":%lld}",
                 is_first ? "" : ",\n",
-                row.columns, row.rows, row.seed, row.milliseconds) < 0)
+                row.columns, row.rows, row.seed, row.microseconds) < 0)
     {
         clear_table(&table);
         return false;
@@ -128,6 +166,28 @@ bool run_time_benchmarks(void)
         return false;
     }
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_watson.json", watson_alg,
+                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
+                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
+                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+    {
+        return false;
+    }
+
+    if (!benchmark_algorithm(RESULTS_DIR "/timewait_dfs.json", dfs_adapter,
+                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
+                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
+                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+    {
+        return false;
+    }
+    if (!benchmark_algorithm(RESULTS_DIR "/timewait_binary_tree.json", binary_algos,
+                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
+                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
+                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+    {
+        return false;
+    }
+    if (!benchmark_algorithm(RESULTS_DIR "/timewait_recursive_division.json", recursive_division_algorithm,
                              common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
                              common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
                              seeds, sizeof(seeds) / sizeof(seeds[0])))

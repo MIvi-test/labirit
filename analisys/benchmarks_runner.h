@@ -11,9 +11,15 @@ static const char *CREATED_JSON_FILES[] = {
     "analisys/json_data/timewait_prim.json",
     "analisys/json_data/timewait_growing_tree.json",
     "analisys/json_data/timewait_watson.json",
+    "analisys/json_data/timewait_dfs.json",
+    "analisys/json_data/timewait_binary_tree.json",
+    "analisys/json_data/timewait_recursive_division.json",
     "analisys/json_data/topology_prim.json",
     "analisys/json_data/topology_growing_tree.json",
-    "analisys/json_data/topology_watson.json"};
+    "analisys/json_data/topology_watson.json",
+    "analisys/json_data/topology_dfs.json",
+    "analisys/json_data/topology_binary_tree.json",
+    "analisys/json_data/topology_recursive_division.json"};
 
 static const int CREATED_JSON_FILES_COUNT = (int)(sizeof(CREATED_JSON_FILES) / sizeof(CREATED_JSON_FILES[0]));
 
