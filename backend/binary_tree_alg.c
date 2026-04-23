@@ -3,41 +3,32 @@
 
 void binary_algos(MazeTable table)
 {
-
-    for (int axis = 0; axis < 2; axis++)
+    if (!table.data || table.rows <= 0 || table.columns <= 0)
     {
-        for (int x = 0; x < table.rows; x++)
+        return;
+    }
+
+    for (int y = 0; y < table.rows; y++)
+    {
+        for (int x = 0; x < table.columns; x++)
         {
-            for (int y = 0; y < table.columns; y++)
+            if (x == table.columns - 1 && y == table.rows - 1)
             {
-                if (x == 0 && y == table.columns - 1)
-                {
-                    continue;
-                }
-                if (axis)
-                {
-                    if (rand() % 2)
-                    {
-                        if (y == 0)
-                        {
-                            continue;
-                        }
-                        table.data[y][x].wall.top = 0;
-                        table.data[y + 1][x].wall.bottom = 0;
-                    }
-                }
-                else
-                {
-                    if (rand() % 2)
-                    {
-                        if (x == table.rows - 1)
-                        {
-                            continue;
-                        }
-                        table.data[y][x].wall.right = 0;
-                        table.data[y][x + 1].wall.left = 0;
-                    }
-                }
+                continue;
+            }
+
+            bool can_right = (x + 1 < table.columns);
+            bool can_bottom = (y + 1 < table.rows);
+
+            if (can_right && (!can_bottom || (rand() % 2 == 0)))
+            {
+                table.data[y][x].wall.right = 0;
+                table.data[y][x + 1].wall.left = 0;
+            }
+            else if (can_bottom)
+            {
+                table.data[y][x].wall.bottom = 0;
+                table.data[y + 1][x].wall.top = 0;
             }
         }
     }

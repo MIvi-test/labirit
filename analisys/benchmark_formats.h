@@ -10,7 +10,7 @@ typedef struct
     int columns;
     int rows;
     int seed;
-    int milliseconds;
+    long long microseconds;
 } TimeBenchmarkRow;
 
 typedef struct
@@ -24,6 +24,8 @@ typedef struct
     float corridor_ratio;
     float avg_degree;
     int diameter;
+    double aspl;
+    double entropy;
 } TopologyReport;
 
 #endif

@@ -25,3 +25,32 @@ make compile
 ```
 
 Результаты сохраняются в `analisys/json_data`.
+
+## Тестирование (Windows + Linux)
+
+Тесты прогоняют **все** алгоритмы генерации и проверяют:
+- симметрию стен между соседними клетками;
+- закрытые внешние границы;
+- связность лабиринта (из (0,0) достижимы все клетки).
+
+Сборка и запуск:
+
+### Linux/macOS (bash)
+
+```bash
+gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -o tests_run tests/test_algorithms.c
+./tests_run
+```
+
+### Windows (PowerShell)
+
+```powershell
+gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -o tests_run.exe tests/test_algorithms.c
+.\tests_run.exe
+```
+
+Можно прогнать один алгоритм:
+
+```bash
+./tests_run --alg prim
+```
