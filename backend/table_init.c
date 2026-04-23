@@ -15,12 +15,12 @@ MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
     {
         return table;
     }
-    for (int j = 0; j < rows; j++)
+    for (unsigned int j = 0; j < rows; j++)
     {
         Cell *p = (Cell *)malloc(columns * sizeof(Cell));
         if (!p)
         {
-            for (int er = j - 1; er >= 0; er--)
+            for (unsigned int er = 0; er < j; er++)
             {
                 free(data[er]);
             }
@@ -28,7 +28,7 @@ MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
             return table;
         }
         data[j] = p;
-        for (int i = 0; i < columns; i++)
+        for (unsigned int i = 0; i < columns; i++)
         {
             Cell obj;
             obj.all_bits = 0xFF;

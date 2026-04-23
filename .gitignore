@@ -1,6 +1,6 @@
 *.exe
 .vscode
-Makefile
+
 test.c
 app.c
 *.json
