@@ -47,7 +47,12 @@ TABLE INIT_TABLE(unsigned int columns, unsigned int rows, unsigned int seed)
 
 void CLEAR_TABLE(TABLE *table)
 {
-    for(int j = 0; j < table->columns; j++)
+    if (!table || !table->data)
+    {
+        return;
+    }
+
+    for (int j = 0; j < table->rows; j++)
     {
         free(table->data[j]);
     }

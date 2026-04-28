@@ -29,4 +29,6 @@ typedef struct
 
 } TABLE;
 
+void CLEAR_TABLE(TABLE *table);
+
 #endif // DETER_H
