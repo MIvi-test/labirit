@@ -1,13 +1,12 @@
 #include "../backend/all_algorithms.h"
 #include "../deter.h"
 #include "benchmark_formats.h"
+#include "benchmarks_runner.h"
 #include <stdio.h>
 #ifdef _WIN32
-#include <direct.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif
-#include <sys/stat.h>
 #include <time.h>
 
 typedef void (*Generator)(MazeTable);
@@ -39,29 +38,6 @@ static long long now_microseconds(void)
 #endif
     return (long long)ts.tv_sec * 1000000LL + (long long)(ts.tv_nsec / 1000);
 #endif
-}
-
-static int portable_mkdir(const char *path)
-{
-#ifdef _WIN32
-    return _mkdir(path);
-#else
-    return mkdir(path, 0755);
-#endif
-}
-
-bool ensure_results_dir(void)
-{
-    struct stat st;
-    if (stat("analisys", &st) != 0 && portable_mkdir("analisys") != 0)
-    {
-        return false;
-    }
-    if (stat(RESULTS_DIR, &st) == 0)
-    {
-        return true;
-    }
-    return portable_mkdir(RESULTS_DIR) == 0;
 }
 
 static bool run_case(FILE *out, Generator generator, int columns, int rows, int seed, bool is_first)

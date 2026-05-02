@@ -38,7 +38,7 @@ typedef struct
     size_t peak_memory_bytes;
 } MazeGenerationMetrics;
 
-static MazeGenerationMetrics LABIRIT_GENERATION_METRICS = {0, 0, 0};
+extern MazeGenerationMetrics LABIRIT_GENERATION_METRICS;
 
 static inline void labirit_metrics_reset(void)
 {

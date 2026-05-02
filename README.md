@@ -38,14 +38,34 @@ make compile
 ### Linux/macOS (bash)
 
 ```bash
-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -o tests_run tests/test_algorithms.c
+gcc -std=c23 -g -Wall -Wextra -Werror \
+  tests/test_algorithms.c \
+  backend/metrics.c \
+  backend/table_init.c \
+  backend/dfs_algorithm.c \
+  backend/binary_tree_alg.c \
+  backend/recursive_division_algorithm.c \
+  backend/prim.c \
+  backend/watson_alg.c \
+  backend/growing_tree_alg.c \
+  -lm -o tests_run
 ./tests_run
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -o tests_run.exe tests/test_algorithms.c
+gcc -std=c23 -g -Wall -Wextra -Werror `
+  tests/test_algorithms.c `
+  backend/metrics.c `
+  backend/table_init.c `
+  backend/dfs_algorithm.c `
+  backend/binary_tree_alg.c `
+  backend/recursive_division_algorithm.c `
+  backend/prim.c `
+  backend/watson_alg.c `
+  backend/growing_tree_alg.c `
+  -lm -o tests_run.exe
 .\tests_run.exe
 ```
 
@@ -53,4 +73,11 @@ gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -o tests_run.exe tests/test_algorithms
 
 ```bash
 ./tests_run --alg prim
+```
+
+Через `make`:
+
+```bash
+make compile
+make test
 ```

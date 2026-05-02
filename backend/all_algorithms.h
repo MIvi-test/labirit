@@ -12,12 +12,4 @@ void watson_alg(MazeTable table);
 void growing_tree_alg(MazeTable table);
 void clear_table(MazeTable *table);
 
-#include "binary_tree_alg.c"
-#include "dfs_algorithm.c"
-#include "recursive_division_algorithm.c"
-#include "table_init.c"
-#include "prim.c"
-#include "watson_alg.c"
-#include "growing_tree_alg.c"
-
 #endif
