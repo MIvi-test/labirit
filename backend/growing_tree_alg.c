@@ -43,6 +43,9 @@ void growing_tree_alg(MazeTable table)
         free(active_age);
         return;
     }
+    labirit_metrics_alloc((size_t)total * sizeof(bool));
+    labirit_metrics_alloc((size_t)total * sizeof(int));
+    labirit_metrics_alloc((size_t)total * sizeof(int));
 
     int start_x = rand() % table.columns;
     int start_y = rand() % table.rows;
@@ -56,12 +59,14 @@ void growing_tree_alg(MazeTable table)
 
     while (active_count > 0)
     {
+        labirit_metrics_step(1);
         int chosen_pos = 0;
         if (rand() % 100 < 60)
         {
             int best_age = active_age[0];
             for (int i = 1; i < active_count; i++)
             {
+                labirit_metrics_step(1);
                 if (active_age[i] > best_age)
                 {
                     best_age = active_age[i];
@@ -83,6 +88,7 @@ void growing_tree_alg(MazeTable table)
 
         if (y > 0)
         {
+            labirit_metrics_step(1);
             int next = (y - 1) * table.columns + x;
             if (!visited[next])
             {
@@ -91,6 +97,7 @@ void growing_tree_alg(MazeTable table)
         }
         if (x < table.columns - 1)
         {
+            labirit_metrics_step(1);
             int next = y * table.columns + (x + 1);
             if (!visited[next])
             {
@@ -99,6 +106,7 @@ void growing_tree_alg(MazeTable table)
         }
         if (y < table.rows - 1)
         {
+            labirit_metrics_step(1);
             int next = (y + 1) * table.columns + x;
             if (!visited[next])
             {
@@ -107,6 +115,7 @@ void growing_tree_alg(MazeTable table)
         }
         if (x > 0)
         {
+            labirit_metrics_step(1);
             int next = y * table.columns + (x - 1);
             if (!visited[next])
             {
@@ -133,6 +142,9 @@ void growing_tree_alg(MazeTable table)
     }
 
     free(active_age);
+    labirit_metrics_free((size_t)total * sizeof(int));
     free(active);
+    labirit_metrics_free((size_t)total * sizeof(int));
     free(visited);
+    labirit_metrics_free((size_t)total * sizeof(bool));
 }

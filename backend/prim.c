@@ -31,6 +31,7 @@ static void destroy_Bind(void)
     {
         Bind *temp = GLOBAL_BIND_PTR->before;
         free(GLOBAL_BIND_PTR);
+        labirit_metrics_free(sizeof(Bind));
         GLOBAL_BIND_PTR = temp;
     }
 }
@@ -42,6 +43,7 @@ bool add_bind(int x1, int y1, int x2, int y2)
     {
         return false;
     }
+    labirit_metrics_alloc(sizeof(Bind));
     new_element->before = GLOBAL_BIND_PTR;
     GLOBAL_BIND_PTR = new_element;
     new_element->bind.x1 = x1;
@@ -70,6 +72,7 @@ massive pop_bind()
 
     while (node->before != NULL && (rand() % 4) != 0)
     {
+        labirit_metrics_step(1);
         prev = node;
         node = node->before;
     }
@@ -86,6 +89,7 @@ massive pop_bind()
     }
 
     free(node);
+    labirit_metrics_free(sizeof(Bind));
     return r;
 }
 
@@ -96,6 +100,7 @@ bool add_visit(int x, int y)
     {
         return false;
     }
+    labirit_metrics_alloc(sizeof(Visited));
     new_element->x = x;
     new_element->y = y;
     new_element->before = GLOBAL_VISITED_PTR;
@@ -109,6 +114,7 @@ void destroy_Visited()
     {
         Visited *temp = GLOBAL_VISITED_PTR->before;
         free(GLOBAL_VISITED_PTR);
+        labirit_metrics_free(sizeof(Visited));
         GLOBAL_VISITED_PTR = temp;
     }
 }
@@ -118,6 +124,7 @@ bool in_visited(int x, int y)
     Visited *cur = GLOBAL_VISITED_PTR;
     while (cur)
     {
+        labirit_metrics_step(1);
         if (cur->x == x && cur->y == y)
         {
             return true;
@@ -161,6 +168,7 @@ void prim_alg(MazeTable table)
     add_bind(0, 0, 1, 0);
     do
     {
+        labirit_metrics_step(1);
         massive bind = pop_bind();
         if (!in_visited(bind.x2, bind.y2))
         {

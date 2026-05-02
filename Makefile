@@ -15,10 +15,13 @@ TARGET := main$(EXEEXT)
 RM ?= rm -f
 LDLIBS += -lm
 
+BACKEND_SOURCES := $(wildcard backend/*.c)
+ANALYSIS_SOURCES := $(wildcard analisys/*.c)
+HEADERS := $(wildcard *.h backend/*.h analisys/*.h)
 
 all: compile
 
-$(TARGET): main.c
+$(TARGET): main.c $(BACKEND_SOURCES) $(ANALYSIS_SOURCES) $(HEADERS)
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
 compile:
@@ -30,3 +33,4 @@ run:
 clean:
 	-$(RM) "$(TARGET)"
 	-$(RM) analisys/json_data/*.json
+	-$(RM) analisys/json_data/examples/*.json

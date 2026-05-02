@@ -6,6 +6,7 @@ static void open_all_internal_walls(MazeTable table)
     {
         for (int x = 0; x < table.columns; x++)
         {
+            labirit_metrics_step(1);
             if (x + 1 < table.columns)
             {
                 table.data[y][x].wall.right = 0;
@@ -22,6 +23,7 @@ static void open_all_internal_walls(MazeTable table)
 
 static void divide(int x, int y, int w, int h, MazeTable table)
 {
+    labirit_metrics_step(1);
     if (w <= 1 || h <= 1)
     {
         return;
@@ -42,6 +44,7 @@ static void divide(int x, int y, int w, int h, MazeTable table)
 
         for (int i = 0; i < w; i++)
         {
+            labirit_metrics_step(1);
             int cx = x + i;
             if (cx == passage_x)
             {
@@ -61,6 +64,7 @@ static void divide(int x, int y, int w, int h, MazeTable table)
 
         for (int j = 0; j < h; j++)
         {
+            labirit_metrics_step(1);
             int cy = y + j;
             if (cy == passage_y)
             {

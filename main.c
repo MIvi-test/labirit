@@ -7,8 +7,7 @@
  * В проекте генераторы подключаются через all_algorithms.h (include .c),
  * поэтому модули анализа подключаются как единицы трансляции здесь.
  */
-#include "analisys/time_wait_benchmarks.c"
-#include "analisys/topology_benchmarks.c"
+#include "analisys/combined_benchmarks.c"
 #include "json_parser.c"
 
 int main(int argc, char **argv)
@@ -24,15 +23,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!run_time_benchmarks())
+    if (!run_combined_benchmarks())
     {
-        fprintf(stderr, "time benchmarks failed\n");
-        return 1;
-    }
-
-    if (!run_topology_benchmarks())
-    {
-        fprintf(stderr, "topology benchmarks failed\n");
+        fprintf(stderr, "combined benchmarks failed\n");
         return 1;
     }
 

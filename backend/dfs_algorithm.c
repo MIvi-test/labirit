@@ -17,6 +17,8 @@ bool dfs_algorithm(MazeTable table)
         free(stack);
         return false;
     }
+    labirit_metrics_alloc((size_t)total * sizeof(bool));
+    labirit_metrics_alloc((size_t)total * sizeof(int));
 
     int sp = 0;
     int start = 0;
@@ -25,6 +27,7 @@ bool dfs_algorithm(MazeTable table)
 
     while (sp > 0)
     {
+        labirit_metrics_step(1);
         int cur = stack[sp - 1];
         int x = cur % table.columns;
         int y = cur / table.columns;
@@ -34,24 +37,28 @@ bool dfs_algorithm(MazeTable table)
 
         if (y > 0)
         {
+            labirit_metrics_step(1);
             int next = (y - 1) * table.columns + x;
             if (!visited[next])
                 neighbors[count++] = next;
         }
         if (x + 1 < table.columns)
         {
+            labirit_metrics_step(1);
             int next = y * table.columns + (x + 1);
             if (!visited[next])
                 neighbors[count++] = next;
         }
         if (y + 1 < table.rows)
         {
+            labirit_metrics_step(1);
             int next = (y + 1) * table.columns + x;
             if (!visited[next])
                 neighbors[count++] = next;
         }
         if (x > 0)
         {
+            labirit_metrics_step(1);
             int next = y * table.columns + (x - 1);
             if (!visited[next])
                 neighbors[count++] = next;
@@ -93,6 +100,8 @@ bool dfs_algorithm(MazeTable table)
     }
 
     free(stack);
+    labirit_metrics_free((size_t)total * sizeof(int));
     free(visited);
+    labirit_metrics_free((size_t)total * sizeof(bool));
     return true;
 }

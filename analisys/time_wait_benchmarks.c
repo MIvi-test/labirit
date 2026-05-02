@@ -98,7 +98,9 @@ static bool run_case(FILE *out, Generator generator, int columns, int rows, int 
 static bool benchmark_algorithm(const char *path, Generator generator,
                                 const int *widths, size_t widths_count,
                                 const int *heights, size_t heights_count,
-                                const int *seeds, size_t seeds_count)
+                                const int *seeds, size_t seeds_count,
+                                const BenchmarkGridSize *extra_sizes,
+                                size_t extra_sizes_count)
 {
     FILE *out = fopen(path, "w");
     if (!out)
@@ -130,6 +132,21 @@ static bool benchmark_algorithm(const char *path, Generator generator,
         }
     }
 
+    for (size_t i = 0; i < extra_sizes_count; i++)
+    {
+        for (size_t s = 0; s < seeds_count; s++)
+        {
+            if (!run_case(out, generator,
+                          extra_sizes[i].columns, extra_sizes[i].rows,
+                          seeds[s], first_entry))
+            {
+                fclose(out);
+                return false;
+            }
+            first_entry = false;
+        }
+    }
+
     if (fprintf(out, "\n]\n") < 0)
     {
         fclose(out);
@@ -142,9 +159,7 @@ static bool benchmark_algorithm(const char *path, Generator generator,
 
 bool run_time_benchmarks(void)
 {
-    const int common_widths[] = {8, 16, 32, 64, 96, 128};
-    const int common_heights[] = {8, 12, 24, 48, 72, 96};
-    const int seeds[] = {101, 202, 303, 404, 505};
+    const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
 
     if (!ensure_results_dir())
     {
@@ -152,45 +167,57 @@ bool run_time_benchmarks(void)
     }
 
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_prim.json", prim_alg,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_growing_tree.json", growing_tree_alg,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_watson.json", watson_alg,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }
 
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_dfs.json", dfs_adapter,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_binary_tree.json", binary_algos,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }
     if (!benchmark_algorithm(RESULTS_DIR "/timewait_recursive_division.json", recursive_division_algorithm,
-                             common_widths, sizeof(common_widths) / sizeof(common_widths[0]),
-                             common_heights, sizeof(common_heights) / sizeof(common_heights[0]),
-                             seeds, sizeof(seeds) / sizeof(seeds[0])))
+                             NULL, 0,
+                             NULL, 0,
+                             seeds, sizeof(seeds) / sizeof(seeds[0]),
+                             TIME_BENCH_CASES,
+                             sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0])))
     {
         return false;
     }

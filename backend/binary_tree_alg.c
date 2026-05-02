@@ -12,6 +12,7 @@ void binary_algos(MazeTable table)
     {
         for (int x = 0; x < table.columns; x++)
         {
+            labirit_metrics_step(1);
             if (x == table.columns - 1 && y == table.rows - 1)
             {
                 continue;

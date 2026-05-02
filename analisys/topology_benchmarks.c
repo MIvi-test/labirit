@@ -165,12 +165,7 @@ static double compute_aspl_slow(MazeTable table)
     }
 
     /* Intentionally slow \(O(V^2)\) implementation.
-       Guardrail to keep default benchmarks from running for too long. */
-    const int ASPL_MAX_CELLS = 4096;
-    if (total > ASPL_MAX_CELLS)
-    {
-        return -1.0;
-    }
+       Guardrail removed by request. */
 
     double sum = 0.0;
 
@@ -249,12 +244,6 @@ static double compute_distance_entropy_slow(MazeTable table)
     if (total <= 1)
     {
         return 0.0;
-    }
-
-    const int ASPL_MAX_CELLS = 4096;
-    if (total > ASPL_MAX_CELLS)
-    {
-        return -1.0;
     }
 
     long long pairs = (long long)total * (long long)(total - 1);
@@ -397,8 +386,8 @@ static bool analyze_topology(MazeTable table, TopologyReport *out, int columns, 
 }
 
 static bool benchmark_topology_one(const char *path, Generator generator,
-                                   const int *widths, size_t widths_count,
-                                   const int *heights, size_t heights_count,
+                                   const BenchmarkGridSize *sizes,
+                                   size_t sizes_count,
                                    const int *seeds, size_t seeds_count)
 {
     FILE *out = fopen(path, "w");
@@ -415,50 +404,47 @@ static bool benchmark_topology_one(const char *path, Generator generator,
 
     bool first_entry = true;
 
-    for (size_t w = 0; w < widths_count; w++)
+    for (size_t i = 0; i < sizes_count; i++)
     {
-        for (size_t h = 0; h < heights_count; h++)
+        for (size_t s = 0; s < seeds_count; s++)
         {
-            for (size_t s = 0; s < seeds_count; s++)
+            int columns = sizes[i].columns;
+            int rows = sizes[i].rows;
+            int seed = seeds[s];
+            MazeTable table = init_table(columns, rows, seed);
+            if (!table.data)
             {
-                int columns = widths[w];
-                int rows = heights[h];
-                int seed = seeds[s];
-                MazeTable table = init_table(columns, rows, seed);
-                if (!table.data)
-                {
-                    fclose(out);
-                    return false;
-                }
-
-                generator(table);
-                TopologyReport report;
-                if (!analyze_topology(table, &report, columns, rows, seed))
-                {
-                    clear_table(&table);
-                    fclose(out);
-                    return false;
-                }
-                if (fprintf(out,
-                            "%s  {\"columns\":%d,\"rows\":%d,\"seed\":%d,"
-                            "\"all_pairs_connected\":%s,\"branch_ratio\":%.6f,"
-                            "\"dead_end_ratio\":%.6f,\"corridor_ratio\":%.6f,"
-                            "\"avg_degree\":%.6f,\"diameter\":%d,\"aspl\":%.6f,\"entropy\":%.6f}",
-                            first_entry ? "" : ",\n",
-                            report.columns, report.rows, report.seed,
-                            report.all_pairs_connected ? "true" : "false",
-                            report.branch_ratio, report.dead_end_ratio,
-                            report.corridor_ratio, report.avg_degree,
-                            report.diameter, report.aspl, report.entropy) < 0)
-                {
-                    clear_table(&table);
-                    fclose(out);
-                    return false;
-                }
-                first_entry = false;
-
-                clear_table(&table);
+                fclose(out);
+                return false;
             }
+
+            generator(table);
+            TopologyReport report;
+            if (!analyze_topology(table, &report, columns, rows, seed))
+            {
+                clear_table(&table);
+                fclose(out);
+                return false;
+            }
+            if (fprintf(out,
+                        "%s  {\"columns\":%d,\"rows\":%d,\"seed\":%d,"
+                        "\"all_pairs_connected\":%s,\"branch_ratio\":%.6f,"
+                        "\"dead_end_ratio\":%.6f,\"corridor_ratio\":%.6f,"
+                        "\"avg_degree\":%.6f,\"diameter\":%d,\"aspl\":%.6f,\"entropy\":%.6f}",
+                        first_entry ? "" : ",\n",
+                        report.columns, report.rows, report.seed,
+                        report.all_pairs_connected ? "true" : "false",
+                        report.branch_ratio, report.dead_end_ratio,
+                        report.corridor_ratio, report.avg_degree,
+                        report.diameter, report.aspl, report.entropy) < 0)
+            {
+                clear_table(&table);
+                fclose(out);
+                return false;
+            }
+            first_entry = false;
+
+            clear_table(&table);
         }
     }
 
@@ -474,49 +460,47 @@ static bool benchmark_topology_one(const char *path, Generator generator,
 
 bool run_topology_benchmarks(void)
 {
-    const int widths[] = {8, 16, 32, 64, 96, 128};
-    const int heights[] = {8, 12, 24, 48, 72, 96};
-    const int seeds[] = {101, 202, 303, 404, 505};
+    const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
 
     if (!benchmark_topology_one(RESULTS_DIR "/topology_prim.json", prim_alg,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
     }
     if (!benchmark_topology_one(RESULTS_DIR "/topology_growing_tree.json", growing_tree_alg,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
     }
     if (!benchmark_topology_one(RESULTS_DIR "/topology_watson.json", watson_alg,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
     }
 
     if (!benchmark_topology_one(RESULTS_DIR "/topology_dfs.json", dfs_topology_adapter,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
     }
     if (!benchmark_topology_one(RESULTS_DIR "/topology_binary_tree.json", binary_algos,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
     }
     if (!benchmark_topology_one(RESULTS_DIR "/topology_recursive_division.json", recursive_division_algorithm,
-                                widths, sizeof(widths) / sizeof(widths[0]),
-                                heights, sizeof(heights) / sizeof(heights[0]),
+                                TIME_BENCH_CASES,
+                                sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                 seeds, sizeof(seeds) / sizeof(seeds[0])))
     {
         return false;
