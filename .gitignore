@@ -5,3 +5,4 @@ app.c
 *.json
 .*
 __pycache__
+main
