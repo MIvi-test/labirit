@@ -2,6 +2,5 @@
 .vscode
 test.c
 app.c
-*.json
 .*
 __pycache__

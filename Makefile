@@ -32,5 +32,5 @@ run:
 
 clean:
 	-$(RM) "$(TARGET)"
-	-$(RM) analisys/json_data/*.json
-	-$(RM) analisys/json_data/examples/*.json
+# 	-$(RM) analisys/json_data/*.json
+# 	-$(RM) analisys/json_data/examples/*.json
