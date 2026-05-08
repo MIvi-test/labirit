@@ -57,7 +57,7 @@ run-benchmarks: $(BENCH_TARGET)
 
 clean:
 	-$(RM) "$(TARGET)" "$(BENCH_TARGET)" "$(TEST_TARGET)"
-	-$(RM) analisys/json_data/*.json
-	-$(RM) analisys/json_data/examples/*.json
+# 	-$(RM) analisys/json_data/*.json
+# 	-$(RM) analisys/json_data/examples/*.json
 
 .PHONY: all compile test run clean run-benchmarks

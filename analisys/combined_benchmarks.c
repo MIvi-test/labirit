@@ -649,6 +649,58 @@ static double compute_distance_entropy_slow(MazeTable table)
     return h;
 }
 
+static void dfs_longest(MazeTable table, int current, bool *visited, int current_length, int *max_path)
+{
+    visited[current] = true;
+
+    if (current_length > *max_path)
+    {
+        *max_path = current_length;
+    }
+
+    int x = current % table.columns;
+    int y = current / table.columns;
+
+    int neighbors[4];
+    int count = 0;
+    if (table.data[y][x].wall.top == 0 && y > 0)
+        neighbors[count++] = (y - 1) * table.columns + x;
+    if (table.data[y][x].wall.right == 0 && x < table.columns - 1)
+        neighbors[count++] = y * table.columns + x + 1;
+    if (table.data[y][x].wall.bottom == 0 && y < table.rows - 1)
+        neighbors[count++] = (y + 1) * table.columns + x;
+    if (table.data[y][x].wall.left == 0 && x > 0)
+        neighbors[count++] = y * table.columns + x - 1;
+
+    for (int i = 0; i < count; i++)
+    {
+        int next = neighbors[i];
+        if (!visited[next])
+        {
+            dfs_longest(table, next, visited, current_length + 1, max_path);
+        }
+    }
+
+    visited[current] = false;  // backtrack
+}
+
+static int find_longest_path(MazeTable table)
+{
+    // NP-трудная задача для общих графов!
+    // Для небольших лабиринтов можно использовать DFS с backtracking
+    int total = table.rows * table.columns;
+    bool *visited = calloc(total, sizeof(bool));
+    int max_path = 0;
+    
+    for (int start = 0; start < total; start++)
+    {
+        dfs_longest(table, start, visited, 0, &max_path);
+    }
+    
+    free(visited);
+    return max_path;
+}
+
 static bool analyze_topology(MazeTable table, TopologyReport *out, int columns, int rows, int seed,
                              MazeGenerationMetrics metrics)
 {
@@ -699,7 +751,7 @@ static bool analyze_topology(MazeTable table, TopologyReport *out, int columns, 
     out->avg_degree = (float)degree_sum / (float)total;
     out->cycle_count = open_edges - total + components;
     out->diameter = diameter;
-    out->longest_path = diameter;
+    out->longest_path = find_longest_path(table);
     out->symmetry_score = compute_symmetry_score(table);
     out->fractal_dimension = compute_fractal_dimension(table);
     out->aspl = out->all_pairs_connected ? compute_aspl_slow(table) : -1.0;
