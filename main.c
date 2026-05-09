@@ -8,14 +8,13 @@
 #include "json_parser.h"
 
 #define DEFAULT_VALUE_COLUMNS 10
-#define DEFAULT_VALUE_ROWS 10 
-
+#define DEFAULT_VALUE_ROWS 10
 
 static void print_usage(const char *prog)
 {
     fprintf(stderr,
             "Usage: %s [options] [algorithm] [columns] [rows] [seed]\n"
-            "  algorithm: prim | dfs | growing_tree | watson | binary\n"
+            "  algorithm: prim | dfs | growing_tree | watson | binary | recursive\n"
             "  options:\n"
             "    --ascii, -a     text output (console); on Windows skips the GUI\n"
             "    --dump          print generated JSON files to stdout\n"

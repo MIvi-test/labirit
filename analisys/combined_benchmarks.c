@@ -13,6 +13,28 @@
 
 typedef void (*Generator)(MazeTable);
 
+static int global_progress = 0;
+static int total_progress = 0;
+
+static void print_progress(int current, int total)
+{
+    int width = 50;
+    float progress = (float)current / total;
+    int pos = (int)(width * progress);
+    printf("\r[");
+    for (int i = 0; i < width; i++)
+    {
+        if (i < pos)
+            printf("=");
+        else if (i == pos)
+            printf(">");
+        else
+            printf(" ");
+    }
+    printf("] %d%% (%d/%d)", (int)(progress * 100.0f), current, total);
+    fflush(stdout);
+}
+
 static void dfs_topology_adapter(MazeTable t)
 {
     (void)dfs_algorithm(t);
@@ -681,7 +703,7 @@ static void dfs_longest(MazeTable table, int current, bool *visited, int current
         }
     }
 
-    visited[current] = false;  // backtrack
+    visited[current] = false; // backtrack
 }
 
 static int find_longest_path(MazeTable table)
@@ -691,12 +713,12 @@ static int find_longest_path(MazeTable table)
     int total = table.rows * table.columns;
     bool *visited = calloc(total, sizeof(bool));
     int max_path = 0;
-    
+
     for (int start = 0; start < total; start++)
     {
         dfs_longest(table, start, visited, 0, &max_path);
     }
-    
+
     free(visited);
     return max_path;
 }
@@ -806,6 +828,8 @@ static bool run_case_combined(FILE *out, Generator generator, int columns, int r
     }
 
     clear_table(&table);
+    global_progress++;
+    print_progress(global_progress, total_progress);
     return true;
 }
 
@@ -968,6 +992,13 @@ bool run_combined_benchmarks(void)
         return false;
     }
 
+    const int seeds_count = sizeof(seeds) / sizeof(seeds[0]);
+    const int sizes_count = sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]);
+    total_progress = 6 * sizes_count * seeds_count;
+    global_progress = 0;
+
+    printf("Running benchmarks...\n");
+
     if (!benchmark_algorithm_combined(RESULTS_DIR "/prim.json", prim_alg,
                                       TIME_BENCH_CASES, sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
                                       seeds, sizeof(seeds) / sizeof(seeds[0])))
@@ -1001,5 +1032,6 @@ bool run_combined_benchmarks(void)
     if (!write_example_mazes())
         return false;
 
+    printf("\nBenchmarks completed.\n");
     return true;
 }
