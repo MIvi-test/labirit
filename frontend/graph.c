@@ -48,6 +48,10 @@ MazeAlgorithm parse_algorithm_name(const char *name)
     {
         return MAZE_ALGO_BINARY;
     }
+    if (same_text(name, "recursive") || same_text(name, "recursive_division"))
+    {
+        return MAZE_ALGO_RECURSIVE_DIVISION;
+    }
 
     return MAZE_ALGO_PRIM;
 }
@@ -64,6 +68,8 @@ const char *maze_algorithm_name(MazeAlgorithm algorithm)
         return "watson";
     case MAZE_ALGO_BINARY:
         return "binary";
+    case MAZE_ALGO_RECURSIVE_DIVISION:
+        return "recursive_division";
     case MAZE_ALGO_PRIM:
     default:
         return "prim";
@@ -96,6 +102,9 @@ void maze_run_algorithm(TABLE table, MazeAlgorithm algorithm)
         break;
     case MAZE_ALGO_BINARY:
         binary_algos(table);
+        break;
+    case MAZE_ALGO_RECURSIVE_DIVISION:
+        recursive_division_algorithm(table);
         break;
     case MAZE_ALGO_PRIM:
     default:
@@ -269,7 +278,7 @@ static void maze_sync_controls_from_state(void)
 static void maze_sync_state_from_controls(void)
 {
     LRESULT selected = SendMessageA(g_app.algorithm_combo, CB_GETCURSEL, 0, 0);
-    if (selected >= 0 && selected <= MAZE_ALGO_BINARY)
+    if (selected >= 0 && selected <= MAZE_ALGO_RECURSIVE_DIVISION)
     {
         g_app.algorithm = (MazeAlgorithm)selected;
     }
@@ -288,11 +297,12 @@ static void maze_create_controls(HWND hwnd)
     g_app.algorithm_combo = CreateWindowA("COMBOBOX", "",
                                           WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST,
                                           85, 12, 150, 200, hwnd, (HMENU)IDC_ALGORITHM, instance, NULL);
-    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM)"prim");
-    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM)"dfs");
-    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM)"growing_tree");
-    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM)"watson");
-    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM)"binary");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "prim");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "dfs");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "growing_tree");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "watson");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "binary");
+    SendMessageA(g_app.algorithm_combo, CB_ADDSTRING, 0, (LPARAM) "recursive_division");
 
     CreateWindowA("STATIC", "Cols:", WS_CHILD | WS_VISIBLE,
                   250, 16, 35, 20, hwnd, NULL, instance, NULL);

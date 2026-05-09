@@ -9,7 +9,8 @@ typedef enum
     MAZE_ALGO_DFS,
     MAZE_ALGO_GROWING_TREE,
     MAZE_ALGO_WATSON,
-    MAZE_ALGO_BINARY
+    MAZE_ALGO_BINARY,
+    MAZE_ALGO_RECURSIVE_DIVISION
 } MazeAlgorithm;
 
 MazeAlgorithm parse_algorithm_name(const char *name);
