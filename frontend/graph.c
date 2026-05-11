@@ -367,8 +367,6 @@ static void maze_draw(HWND hwnd, HDC hdc)
         return;
     }
 
-    const int maze_width = cell_size * g_app.columns;
-    const int maze_height = cell_size * g_app.rows;
     const int origin_x = margin;
     const int origin_y = top_panel;
 

@@ -1,19 +1,53 @@
+# ============================================================================
+# Cross-platform Makefile for Maze Generation Algorithms
+# Supports: Windows (MinGW/MSVC), Linux, macOS
+# ============================================================================
+
+# Platform detection
+ifeq ($(OS),Windows_NT)
+  PLATFORM := windows
+  EXEEXT := .exe
+  PATHSEP := \\
+  RM := del /Q
+  MKDIR := mkdir
+else
+  UNAME := $(shell uname -s)
+  ifeq ($(UNAME),Linux)
+    PLATFORM := linux
+  endif
+  ifeq ($(UNAME),Darwin)
+    PLATFORM := macos
+  endif
+  EXEEXT :=
+  PATHSEP := /
+  RM := rm -f
+  MKDIR := mkdir -p
+endif
+
+# Compiler and flags
 CC ?= cc
 CFLAGS ?= -Wall -Wextra -Werror -std=c23 -g
 LDFLAGS ?=
 LDLIBS ?= -lm
 
-ifeq ($(OS),Windows_NT)
-  EXEEXT := .exe
-else
-  EXEEXT :=
+# Platform-specific optimizations
+ifeq ($(PLATFORM),windows)
+  # MinGW specific flags
+  CFLAGS += -D_WIN32_WINNT=0x0601
+  LDLIBS += -lgdi32 -luser32
+else ifeq ($(PLATFORM),linux)
+  # Linux specific flags
+  CFLAGS += -D_GNU_SOURCE
+  LDLIBS += -ldl
+else ifeq ($(PLATFORM),macos)
+  # macOS specific flags
+  CFLAGS += -D__APPLE__
 endif
 
+# Targets
 TARGET := main$(EXEEXT)
 BENCH_TARGET := benchmarks$(EXEEXT)
 TEST_TARGET := tests_run$(EXEEXT)
-
-RM ?= rm -f
 
 BACKEND_SRCS := \
 	backend/metrics.c \
@@ -46,18 +80,24 @@ $(TEST_TARGET): $(TEST_SRCS) $(COMMON_HEADERS)
 compile: $(TARGET)
 
 test: $(TEST_TARGET)
-	./$(TEST_TARGET)
+	$(TARGET)
 
 run: $(TARGET)
-	./$(TARGET)
-	./$(TARGET) --dump
+	$(TARGET)
+	$(TARGET) --dump
 
 run-benchmarks: $(BENCH_TARGET)
-	./$(BENCH_TARGET)
+	$(BENCH_TARGET)
 
 clean:
-	-$(RM) "$(TARGET)" "$(BENCH_TARGET)" "$(TEST_TARGET)"
-# 	-$(RM) analisys/json_data/*.json
-# 	-$(RM) analisys/json_data/examples/*.json
+	-$(RM) $(TARGET) $(BENCH_TARGET) $(TEST_TARGET)
+# 	-$(RM) analisys$(PATHSEP)json_data$(PATHSEP)*.json
+# 	-$(RM) analisys$(PATHSEP)json_data$(PATHSEP)examples$(PATHSEP)*.json
 
-.PHONY: all compile test run clean run-benchmarks
+# Platform-specific targets
+show-platform:
+	@echo Platform: $(PLATFORM)
+	@echo Executable extension: $(EXEEXT)
+	@echo Path separator: $(PATHSEP)
+
+.PHONY: all compile test run clean run-benchmarks show-platform
