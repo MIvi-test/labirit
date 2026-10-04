@@ -3,11 +3,6 @@
 #include "benchmark_formats.h"
 #include <stdio.h>
 #include <math.h>
-#ifdef _WIN32
-#include <direct.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 #include <sys/stat.h>
 #include <time.h>
 
@@ -42,41 +37,20 @@ static void dfs_topology_adapter(MazeTable t)
 
 static long long now_microseconds(void)
 {
-#ifdef _WIN32
-    static LARGE_INTEGER freq;
-    static int init = 0;
-    if (!init)
-    {
-        QueryPerformanceFrequency(&freq);
-        init = 1;
-    }
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return (long long)((counter.QuadPart * 1000000LL) / freq.QuadPart);
-#else
     struct timespec ts;
-#if defined(CLOCK_MONOTONIC)
     clock_gettime(CLOCK_MONOTONIC, &ts);
-#else
-    timespec_get(&ts, TIME_UTC);
-#endif
     return (long long)ts.tv_sec * 1000000LL + (long long)(ts.tv_nsec / 1000);
-#endif
 }
 
-static int portable_mkdir(const char *path)
+static int make_directory(const char *path)
 {
-#ifdef _WIN32
-    return _mkdir(path);
-#else
     return mkdir(path, 0755);
-#endif
 }
 
 bool ensure_results_dir(void)
 {
     struct stat st;
-    if (stat("analisys", &st) != 0 && portable_mkdir("analisys") != 0)
+    if (stat("analisys", &st) != 0 && make_directory("analisys") != 0)
     {
         return false;
     }
@@ -84,7 +58,7 @@ bool ensure_results_dir(void)
     {
         return true;
     }
-    return portable_mkdir(RESULTS_DIR) == 0;
+    return make_directory(RESULTS_DIR) == 0;
 }
 
 static bool ensure_examples_dir(void)
@@ -95,7 +69,7 @@ static bool ensure_examples_dir(void)
     {
         return true;
     }
-    return portable_mkdir(path) == 0;
+    return make_directory(path) == 0;
 }
 
 /* --- Topology analysis functions: copied from topology_benchmarks.c --- */

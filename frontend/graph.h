@@ -18,6 +18,6 @@ const char *maze_algorithm_name(MazeAlgorithm algorithm);
 void maze_run_algorithm(TABLE table, MazeAlgorithm algorithm);
 void print_maze(TABLE table);
 void print_maze_info(TABLE table, MazeAlgorithm algorithm);
-int run_maze_window(int columns, int rows, unsigned int seed, MazeAlgorithm algorithm);
+int run_maze(int columns, int rows, unsigned int seed, MazeAlgorithm algorithm);
 
 #endif

@@ -16,7 +16,6 @@ static void print_usage(const char *prog)
             "Usage: %s [options] [algorithm] [columns] [rows] [seed]\n"
             "  algorithm: prim | dfs | growing_tree | watson | binary | recursive\n"
             "  options:\n"
-            "    --ascii, -a     text output (console); on Windows skips the GUI\n"
             "    --dump          print generated JSON files to stdout\n"
             "    --help, -h      this message\n",
             prog);
@@ -47,8 +46,6 @@ int main(int argc, char **argv)
     int rows = DEFAULT_VALUE_ROWS;
     unsigned int seed = (unsigned int)time(NULL);
     MazeAlgorithm algorithm = MAZE_ALGO_PRIM;
-    bool ascii_mode = false;
-
     int i = 1;
     while (i < argc && argv[i][0] == '-' && argv[i][1] != '\0')
     {
@@ -64,12 +61,6 @@ int main(int argc, char **argv)
         {
             print_usage(argv[0]);
             return 0;
-        }
-        if (strcmp(argv[i], "--ascii") == 0 || strcmp(argv[i], "-a") == 0)
-        {
-            ascii_mode = true;
-            i++;
-            continue;
         }
         fprintf(stderr, "%s: unknown option %s\n", argv[0], argv[i]);
         print_usage(argv[0]);
@@ -103,24 +94,5 @@ int main(int argc, char **argv)
         return 2;
     }
 
-#ifdef _WIN32
-    if (ascii_mode)
-    {
-        MazeTable table = init_table((unsigned int)columns, (unsigned int)rows, seed);
-        if (!table.data)
-        {
-            fprintf(stderr, "Failed to allocate maze table\n");
-            return 1;
-        }
-        maze_run_algorithm(table, algorithm);
-        print_maze_info(table, algorithm);
-        print_maze(table);
-        clear_table(&table);
-        return 0;
-    }
-#else
-    (void)ascii_mode;
-#endif
-
-    return run_maze_window(columns, rows, seed, algorithm);
+    return run_maze(columns, rows, seed, algorithm);
 }

@@ -3,10 +3,6 @@
 #include "benchmark_formats.h"
 #include "benchmarks_runner.h"
 #include <stdio.h>
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 #include <time.h>
 
 typedef void (*Generator)(MazeTable);
@@ -18,26 +14,9 @@ static void dfs_adapter(MazeTable t)
 
 static long long now_microseconds(void)
 {
-#ifdef _WIN32
-    static LARGE_INTEGER freq;
-    static int init = 0;
-    if (!init)
-    {
-        QueryPerformanceFrequency(&freq);
-        init = 1;
-    }
-    LARGE_INTEGER counter;
-    QueryPerformanceCounter(&counter);
-    return (long long)((counter.QuadPart * 1000000LL) / freq.QuadPart);
-#else
     struct timespec ts;
-#if defined(CLOCK_MONOTONIC)
     clock_gettime(CLOCK_MONOTONIC, &ts);
-#else
-    timespec_get(&ts, TIME_UTC);
-#endif
     return (long long)ts.tv_sec * 1000000LL + (long long)(ts.tv_nsec / 1000);
-#endif
 }
 
 static bool run_case(FILE *out, Generator generator, int columns, int rows, int seed, bool is_first)
