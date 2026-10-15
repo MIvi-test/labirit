@@ -894,7 +894,8 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 	return true;
 }
 
-static bool benchmark_algorithm_combined(const char *name, const char *path, Generator generator,
+static bool benchmark_algorithm_combined(const char *name, const char *path,
+										 Generator generator,
 										 const BenchmarkGridSize *sizes,
 										 size_t sizes_count, const int *seeds,
 										 size_t seeds_count)
@@ -926,25 +927,28 @@ static bool benchmark_algorithm_combined(const char *name, const char *path, Gen
 				return false;
 			}
 			first_entry = false;
-            completed++;
-            if (completed % 10 == 0 || completed == total)
-            {
-                long long elapsed = (now_microseconds() - started) / 1000000;
-                /* One short write keeps concurrent process logs readable. */
-                char line[512];
-                int length = snprintf(line, sizeof(line),
-                    "[%s] %zu/%zu (%.1f%%) | elapsed %02lld:%02lld | last %dx%d seed=%d\n",
-                    name, completed, total, 100.0 * completed / total,
-                    elapsed / 60, elapsed % 60, sizes[i].columns, sizes[i].rows, seeds[s]);
-                if (length > 0 && (size_t)length < sizeof(line))
-                {
-                    ssize_t written;
-                    do
-                    {
-                        written = write(STDOUT_FILENO, line, (size_t)length);
-                    } while (written == -1 && errno == EINTR);
-                }
-            }
+			completed++;
+			if (completed % 10 == 0 || completed == total)
+			{
+				long long elapsed = (now_microseconds() - started) / 1000000;
+				/* One short write keeps concurrent process logs readable. */
+				char line[512];
+				int length =
+					snprintf(line, sizeof(line),
+							 "[%s] %zu/%zu (%.1f%%) | elapsed %02lld:%02lld | "
+							 "last %dx%d seed=%d\n",
+							 name, completed, total, 100.0 * completed / total,
+							 elapsed / 60, elapsed % 60, sizes[i].columns,
+							 sizes[i].rows, seeds[s]);
+				if (length > 0 && (size_t)length < sizeof(line))
+				{
+					ssize_t written;
+					do
+					{
+						written = write(STDOUT_FILENO, line, (size_t)length);
+					} while (written == -1 && errno == EINTR);
+				}
+			}
 		}
 	}
 
@@ -1073,94 +1077,100 @@ static bool write_example_mazes(void)
 /* The caller must be single-threaded when forking. Workers create their
  * metric threads only after fork, and each worker owns a separate JSON file. */
 static bool run_benchmark_jobs(const BenchmarkJob *jobs, size_t jobs_count,
-                               const BenchmarkGridSize *sizes, size_t sizes_count,
-                               const int *seeds, size_t seeds_count)
+							   const BenchmarkGridSize *sizes,
+							   size_t sizes_count, const int *seeds,
+							   size_t seeds_count)
 {
-    pid_t *children = calloc(jobs_count, sizeof(*children));
-    if (!children)
-        return false;
+	pid_t *children = calloc(jobs_count, sizeof(*children));
+	if (!children)
+		return false;
 
-    size_t started = 0;
-    bool success = true;
-    fflush(NULL);
-    for (size_t i = 0; i < jobs_count; i++)
-    {
-        pid_t pid = fork();
-        if (pid == -1)
-        {
-            perror("labirit: fork");
-            success = false;
-            break;
-        }
-        if (pid == 0)
-        {
-            bool ok = benchmark_algorithm_combined(jobs[i].name, jobs[i].path, jobs[i].generator,
-                                                    sizes, sizes_count, seeds, seeds_count);
-            _exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
-        }
-        children[started++] = pid;
-        printf("Started %s (PID %ld)\n", jobs[i].name, (long)pid);
-        fflush(stdout);
-    }
+	size_t started = 0;
+	bool success = true;
+	fflush(NULL);
+	for (size_t i = 0; i < jobs_count; i++)
+	{
+		pid_t pid = fork();
+		if (pid == -1)
+		{
+			perror("labirit: fork");
+			success = false;
+			break;
+		}
+		if (pid == 0)
+		{
+			bool ok = benchmark_algorithm_combined(
+				jobs[i].name, jobs[i].path, jobs[i].generator, sizes,
+				sizes_count, seeds, seeds_count);
+			_exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+		}
+		children[started++] = pid;
+		printf("Started %s (PID %ld)\n", jobs[i].name, (long)pid);
+		fflush(stdout);
+	}
 
-    /* All children run concurrently, even though we collect statuses in order. */
-    size_t completed = 0;
-    for (size_t i = 0; i < started; i++)
-    {
-        int status;
-        pid_t result;
-        do
-        {
-            result = waitpid(children[i], &status, 0);
-        } while (result == -1 && errno == EINTR);
+	/* All children run concurrently, even though we collect statuses in order.
+	 */
+	size_t completed = 0;
+	for (size_t i = 0; i < started; i++)
+	{
+		int status;
+		pid_t result;
+		do
+		{
+			result = waitpid(children[i], &status, 0);
+		} while (result == -1 && errno == EINTR);
 
-        if (result == -1)
-        {
-            perror("labirit: waitpid");
-            success = false;
-        }
-        else if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
-        {
-            completed++;
-            printf("Completed %s (%zu/%zu)\n", jobs[i].name, completed, jobs_count);
-            fflush(stdout);
-        }
-        else
-        {
-            if (WIFSIGNALED(status))
-                fprintf(stderr, "labirit: %s terminated by signal %d\n",
-                        jobs[i].name, WTERMSIG(status));
-            else
-                fprintf(stderr, "labirit: %s failed (status %d)\n",
-                        jobs[i].name, WEXITSTATUS(status));
-            success = false;
-        }
-    }
-    free(children);
-    return success;
+		if (result == -1)
+		{
+			perror("labirit: waitpid");
+			success = false;
+		}
+		else if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
+		{
+			completed++;
+			printf("Completed %s (%zu/%zu)\n", jobs[i].name, completed,
+				   jobs_count);
+			fflush(stdout);
+		}
+		else
+		{
+			if (WIFSIGNALED(status))
+				fprintf(stderr, "labirit: %s terminated by signal %d\n",
+						jobs[i].name, WTERMSIG(status));
+			else
+				fprintf(stderr, "labirit: %s failed (status %d)\n",
+						jobs[i].name, WEXITSTATUS(status));
+			success = false;
+		}
+	}
+	free(children);
+	return success;
 }
 
 bool run_combined_benchmarks(void)
 {
-    const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
-    const BenchmarkJob jobs[] = {
-        {"prim", RESULTS_DIR "/prim.json", prim_alg},
-        {"growing_tree", RESULTS_DIR "/growing_tree.json", growing_tree_alg},
-        {"watson", RESULTS_DIR "/watson.json", watson_alg},
-        {"dfs", RESULTS_DIR "/dfs.json", dfs_topology_adapter},
-        {"binary_tree", RESULTS_DIR "/binary_tree.json", binary_algos},
-        {"recursive_division", RESULTS_DIR "/recursive_division.json", recursive_division_algorithm},
-    };
-    if (!ensure_results_dir())
-        return false;
+	const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
+	const BenchmarkJob jobs[] = {
+		{"prim", RESULTS_DIR "/prim.json", prim_alg},
+		{"growing_tree", RESULTS_DIR "/growing_tree.json", growing_tree_alg},
+		{"watson", RESULTS_DIR "/watson.json", watson_alg},
+		{"dfs", RESULTS_DIR "/dfs.json", dfs_topology_adapter},
+		{"binary_tree", RESULTS_DIR "/binary_tree.json", binary_algos},
+		{"recursive_division", RESULTS_DIR "/recursive_division.json",
+		 recursive_division_algorithm},
+	};
+	if (!ensure_results_dir())
+		return false;
 
-    puts("Running benchmarks in 6 processes...");
-    if (!run_benchmark_jobs(jobs, sizeof(jobs) / sizeof(jobs[0]),
-                            TIME_BENCH_CASES, sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
-                            seeds, sizeof(seeds) / sizeof(seeds[0])))
-        return false;
-    if (!write_example_mazes())
-        return false;
-    puts("Benchmarks completed.");
-    return true;
+	puts("Running benchmarks in 6 processes...");
+	if (!run_benchmark_jobs(
+			jobs, sizeof(jobs) / sizeof(jobs[0]), TIME_BENCH_CASES,
+			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
+			sizeof(seeds) / sizeof(seeds[0])))
+		return false;
+	if (!write_example_mazes())
+		return false;
+	puts("Benchmarks completed.");
+	return true;
 }
