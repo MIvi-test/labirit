@@ -43,30 +43,34 @@ static void watson_remove_wall(MazeTable table, int x1, int y1, int x2, int y2)
 
 static bool watson_has_unvisited(MazeTable table, Cell **state)
 {
+    LABIRIT_STEPS_DECLARE();
     for (int y = 0; y < table.rows; y++)
     {
-        labirit_metrics_step(1);
+        LABIRIT_STEPS_ADD(1);
         for (int x = 0; x < table.columns; x++)
         {
-            labirit_metrics_step(1);
+            LABIRIT_STEPS_ADD(1);
             if (!WATSON_IN_MAZE(state[y][x]))
             {
+                LABIRIT_STEPS_COMMIT();
                 return true;
             }
         }
     }
+    LABIRIT_STEPS_COMMIT();
     return false;
 }
 
 static int watson_take_random_unvisited(MazeTable table, Cell **state)
 {
+    LABIRIT_STEPS_DECLARE();
     int total = 0;
     for (int y = 0; y < table.rows; y++)
     {
-        labirit_metrics_step(1);
+        LABIRIT_STEPS_ADD(1);
         for (int x = 0; x < table.columns; x++)
         {
-            labirit_metrics_step(1);
+            LABIRIT_STEPS_ADD(1);
             if (!WATSON_IN_MAZE(state[y][x]))
             {
                 total++;
@@ -76,6 +80,7 @@ static int watson_take_random_unvisited(MazeTable table, Cell **state)
 
     if (total == 0)
     {
+        LABIRIT_STEPS_COMMIT();
         return 0;
     }
 
@@ -90,12 +95,15 @@ static int watson_take_random_unvisited(MazeTable table, Cell **state)
             {
                 if (current == target)
                 {
+                    LABIRIT_STEPS_COMMIT();
                     return watson_idx(table, x, y);
                 }
                 current++;
             }
         }
     }
+
+    LABIRIT_STEPS_COMMIT();
 
     return 0;
 }
@@ -131,14 +139,17 @@ static int watson_random_neighbour(MazeTable table, int x, int y)
 
 void watson_alg(MazeTable table)
 {
+    LABIRIT_STEPS_DECLARE();
     if (!table.data || table.rows <= 0 || table.columns <= 0)
     {
+        LABIRIT_STEPS_COMMIT();
         return;
     }
 
     Cell **state = (Cell **)malloc(sizeof(Cell *) * table.rows);
     if (!state)
     {
+        LABIRIT_STEPS_COMMIT();
         return;
     }
     labirit_metrics_alloc((size_t)table.rows * sizeof(Cell *));
@@ -155,6 +166,7 @@ void watson_alg(MazeTable table)
             }
             free(state);
             labirit_metrics_free((size_t)table.rows * sizeof(Cell *));
+            LABIRIT_STEPS_COMMIT();
             return;
         }
         labirit_metrics_alloc((size_t)table.columns * sizeof(Cell));
@@ -175,13 +187,14 @@ void watson_alg(MazeTable table)
         }
         free(state);
         labirit_metrics_free((size_t)table.rows * sizeof(Cell *));
+        LABIRIT_STEPS_COMMIT();
         return;
     }
     labirit_metrics_alloc((size_t)max_path * sizeof(int));
 
     while (watson_has_unvisited(table, state))
     {
-        labirit_metrics_step(1);
+        LABIRIT_STEPS_ADD(1);
         int start = watson_take_random_unvisited(table, state);
         int path_len = 1;
         path[0] = start;
@@ -191,7 +204,7 @@ void watson_alg(MazeTable table)
 
         while (1)
         {
-            labirit_metrics_step(1);
+            LABIRIT_STEPS_ADD(1);
             int cur_x, cur_y;
             watson_xy(table, path[path_len - 1], &cur_x, &cur_y);
             if (WATSON_IN_MAZE(state[cur_y][cur_x]))
@@ -207,7 +220,7 @@ void watson_alg(MazeTable table)
             {
                 while (path_len > 0)
                 {
-                    labirit_metrics_step(1);
+                    LABIRIT_STEPS_ADD(1);
                     int tail_x, tail_y;
                     watson_xy(table, path[path_len - 1], &tail_x, &tail_y);
                     if (path[path_len - 1] == next)
@@ -235,7 +248,7 @@ void watson_alg(MazeTable table)
 
         for (int i = 0; i < path_len - 1; i++)
         {
-            labirit_metrics_step(1);
+            LABIRIT_STEPS_ADD(1);
             int x1, y1, x2, y2;
             watson_xy(table, path[i], &x1, &y1);
             watson_xy(table, path[i + 1], &x2, &y2);
@@ -244,7 +257,7 @@ void watson_alg(MazeTable table)
         }
         for (int i = 0; i < path_len; i++)
         {
-            labirit_metrics_step(1);
+            LABIRIT_STEPS_ADD(1);
             int x, y;
             watson_xy(table, path[i], &x, &y);
             WATSON_SET_IN_MAZE(state[y][x]);
@@ -261,4 +274,5 @@ void watson_alg(MazeTable table)
     }
     free(state);
     labirit_metrics_free((size_t)table.rows * sizeof(Cell *));
+    LABIRIT_STEPS_COMMIT();
 }

@@ -877,14 +877,15 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 			"\"avg_degree\":%.6f,\"cycle_count\":%d,\"diameter\":%d,"
 			"\"longest_path\":%d,\"symmetry_score\":%.6f,\"fractal_dimension\":"
 			"%.6f,"
-			"\"aspl\":%.6f,\"entropy\":%.6f}",
+			"\"aspl\":%.6f,\"entropy\":%.6f,\"metrics_enabled\":%s}",
 			is_first ? "" : ",\n", report.columns, report.rows, report.seed,
 			microseconds, report.all_pairs_connected ? "true" : "false",
 			report.branch_ratio, report.steps_count, report.memory_peak_bytes,
 			report.wall_density, report.dead_end_count, report.dead_end_ratio,
 			report.corridor_ratio, report.avg_degree, report.cycle_count,
 			report.diameter, report.longest_path, report.symmetry_score,
-			report.fractal_dimension, report.aspl, report.entropy) < 0)
+			report.fractal_dimension, report.aspl, report.entropy,
+            LABIRIT_METRICS_ENABLED ? "true" : "false") < 0)
 	{
 		clear_table(&table);
 		return false;
