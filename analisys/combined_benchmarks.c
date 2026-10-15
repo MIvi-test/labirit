@@ -1,35 +1,42 @@
 #include "../backend/all_algorithms.h"
 #include "../deter.h"
 #include "benchmark_formats.h"
+#include <errno.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <time.h>
+#include <unistd.h>
 
 typedef void (*Generator)(MazeTable);
 
-static int global_progress = 0;
-static int total_progress = 0;
-
-static void print_progress(int current, int total)
+typedef struct
 {
-	int width = 50;
-	float progress = (float)current / total;
-	int pos = (int)(width * progress);
-	printf("\r[");
-	for (int i = 0; i < width; i++)
-	{
-		if (i < pos)
-			printf("=");
-		else if (i == pos)
-			printf(">");
-		else
-			printf(" ");
-	}
-	printf("] %d%% (%d/%d)", (int)(progress * 100.0f), current, total);
-	fflush(stdout);
-}
+	const char *name;
+	const char *path;
+	Generator generator;
+} BenchmarkJob;
+
+typedef enum
+{
+	METRIC_DIAMETER,
+	METRIC_ASPL,
+	METRIC_ENTROPY,
+	METRIC_SYMMETRY,
+	METRIC_FRACTAL_DIMENSION,
+	METRIC_LONGEST_PATH
+} MetricKind;
+
+typedef struct
+{
+	MazeTable table;
+	MetricKind kind;
+	double result;
+	pthread_t thread;
+	bool started;
+} MetricTask;
 
 static void dfs_topology_adapter(MazeTable t) { (void)dfs_algorithm(t); }
 
@@ -691,151 +698,146 @@ static void dfs_longest(MazeTable table, int current, bool *visited,
 
 static int find_longest_path(MazeTable table)
 {
-  // NP-трудная задача для общих графов!
-  // Для небольших лабиринтов можно использовать DFS с backtracking
-  int total = table.rows * table.columns;
-  bool *visited = calloc(total, sizeof(bool));
-  if (!visited) {
-    return -1;
-  }
-  int max_path = 0;
+	// NP-трудная задача для общих графов!
+	// Для небольших лабиринтов можно использовать DFS с backtracking
+	int total = table.rows * table.columns;
+	bool *visited = calloc(total, sizeof(bool));
+	if (!visited)
+	{
+		return -1;
+	}
+	int max_path = 0;
 
-  for (int start = 0; start < total; start++) {
-    dfs_longest(table, start, visited, 0, &max_path);
-  }
+	for (int start = 0; start < total; start++)
+	{
+		dfs_longest(table, start, visited, 0, &max_path);
+	}
 
-  free(visited);
-  return max_path;
+	free(visited);
+	return max_path;
 }
 
 /* Each task owns its result and temporary buffers; the maze is read-only. */
-typedef enum {
-  METRIC_DIAMETER,
-  METRIC_ASPL,
-  METRIC_ENTROPY,
-  METRIC_SYMMETRY,
-  METRIC_FRACTAL_DIMENSION,
-  METRIC_LONGEST_PATH
-} MetricKind;
 
-typedef struct {
-  MazeTable table;
-  MetricKind kind;
-  double result;
-  pthread_t thread;
-  bool started;
-} MetricTask;
-
-static void *run_metric(void *arg) {
-  MetricTask *task = arg;
-  switch (task->kind) {
-  case METRIC_DIAMETER: {
-    int diameter = 0;
-    int a = bfs_farthest(task->table, 0, NULL);
-    (void)bfs_farthest(task->table, a, &diameter);
-    task->result = diameter;
-    break;
-  }
-  case METRIC_ASPL:
-    task->result = compute_aspl_slow(task->table);
-    break;
-  case METRIC_ENTROPY:
-    task->result = compute_distance_entropy_slow(task->table);
-    break;
-  case METRIC_SYMMETRY:
-    task->result = compute_symmetry_score(task->table);
-    break;
-  case METRIC_FRACTAL_DIMENSION:
-    task->result = compute_fractal_dimension(task->table);
-    break;
-  case METRIC_LONGEST_PATH:
-    task->result = find_longest_path(task->table);
-    break;
-  }
-  return NULL;
+static void *run_metric(void *arg)
+{
+	MetricTask *task = arg;
+	switch (task->kind)
+	{
+	case METRIC_DIAMETER:
+	{
+		int diameter = 0;
+		int a = bfs_farthest(task->table, 0, NULL);
+		(void)bfs_farthest(task->table, a, &diameter);
+		task->result = diameter;
+		break;
+	}
+	case METRIC_ASPL:
+		task->result = compute_aspl_slow(task->table);
+		break;
+	case METRIC_ENTROPY:
+		task->result = compute_distance_entropy_slow(task->table);
+		break;
+	case METRIC_SYMMETRY:
+		task->result = compute_symmetry_score(task->table);
+		break;
+	case METRIC_FRACTAL_DIMENSION:
+		task->result = compute_fractal_dimension(task->table);
+		break;
+	case METRIC_LONGEST_PATH:
+		task->result = find_longest_path(task->table);
+		break;
+	}
+	return NULL;
 }
 
 static bool analyze_topology(MazeTable table, TopologyReport *out, int columns,
-                             int rows, int seed,
-                             MazeGenerationMetrics metrics) {
-  if (!out || !table.data) {
-    return false;
-  }
+							 int rows, int seed, MazeGenerationMetrics metrics)
+{
+	if (!out || !table.data)
+	{
+		return false;
+	}
 
-  int total = rows * columns;
-  int branch = 0;
-  int dead_end = 0;
-  int corridor = 0;
-  int degree_sum = 0;
-  int open_edges = count_open_edges(table);
-  int components = count_components(table);
-  if (components <= 0)
-    return false;
-  bool connected = bfs_connected(table, 0);
-  bool is_tree = components == 1 && open_edges == total - 1;
-  MetricTask tasks[] = {
-      {.table = table, .kind = METRIC_DIAMETER},
-      {.table = table, .kind = METRIC_ASPL, .result = -1.0},
-      {.table = table, .kind = METRIC_ENTROPY, .result = -1.0},
-      {.table = table, .kind = METRIC_SYMMETRY},
-      {.table = table, .kind = METRIC_FRACTAL_DIMENSION},
-      {.table = table, .kind = METRIC_LONGEST_PATH},
-  };
-  size_t task_count = sizeof(tasks) / sizeof(tasks[0]);
-  for (size_t i = 0; i < task_count; i++) {
-    if ((!connected &&
-         (tasks[i].kind == METRIC_ASPL || tasks[i].kind == METRIC_ENTROPY)) ||
-        (is_tree && tasks[i].kind == METRIC_LONGEST_PATH))
-      continue;
-    tasks[i].started =
-        pthread_create(&tasks[i].thread, NULL, run_metric, &tasks[i]) == 0;
-    if (!tasks[i].started)
-      run_metric(&tasks[i]);
-  }
+	int total = rows * columns;
+	int branch = 0;
+	int dead_end = 0;
+	int corridor = 0;
+	int degree_sum = 0;
+	int open_edges = count_open_edges(table);
+	int components = count_components(table);
+	if (components <= 0)
+		return false;
+	bool connected = bfs_connected(table, 0);
+	bool is_tree = components == 1 && open_edges == total - 1;
+	MetricTask tasks[] = {
+		{.table = table, .kind = METRIC_DIAMETER},
+		{.table = table, .kind = METRIC_ASPL, .result = -1.0},
+		{.table = table, .kind = METRIC_ENTROPY, .result = -1.0},
+		{.table = table, .kind = METRIC_SYMMETRY},
+		{.table = table, .kind = METRIC_FRACTAL_DIMENSION},
+		{.table = table, .kind = METRIC_LONGEST_PATH},
+	};
+	size_t task_count = sizeof(tasks) / sizeof(tasks[0]);
+	for (size_t i = 0; i < task_count; i++)
+	{
+		if ((!connected && (tasks[i].kind == METRIC_ASPL ||
+							tasks[i].kind == METRIC_ENTROPY)) ||
+			(is_tree && tasks[i].kind == METRIC_LONGEST_PATH))
+			continue;
+		tasks[i].started =
+			pthread_create(&tasks[i].thread, NULL, run_metric, &tasks[i]) == 0;
+		if (!tasks[i].started)
+			run_metric(&tasks[i]);
+	}
 
-  for (int y = 0; y < rows; y++) {
-    for (int x = 0; x < columns; x++) {
-      int degree = cell_degree(table, x, y);
-      degree_sum += degree;
-      if (degree >= 3)
-        branch++;
-      if (degree == 1)
-        dead_end++;
-      if (degree == 2)
-        corridor++;
-    }
-  }
+	for (int y = 0; y < rows; y++)
+	{
+		for (int x = 0; x < columns; x++)
+		{
+			int degree = cell_degree(table, x, y);
+			degree_sum += degree;
+			if (degree >= 3)
+				branch++;
+			if (degree == 1)
+				dead_end++;
+			if (degree == 2)
+				corridor++;
+		}
+	}
 
-  /* Join every worker before reading results or releasing stack contexts. */
-  for (size_t i = 0; i < task_count; i++) {
-    if (tasks[i].started && pthread_join(tasks[i].thread, NULL) != 0) {
-      /* Returning would expose live workers to expired stack storage. */
-      fputs("labirit: failed to join metric worker\n", stderr);
-      abort();
-    }
-  }
+	/* Join every worker before reading results or releasing stack contexts. */
+	for (size_t i = 0; i < task_count; i++)
+	{
+		if (tasks[i].started && pthread_join(tasks[i].thread, NULL) != 0)
+		{
+			/* Returning would expose live workers to expired stack storage. */
+			fputs("labirit: failed to join metric worker\n", stderr);
+			abort();
+		}
+	}
 
-  out->columns = columns;
-  out->rows = rows;
-  out->seed = seed;
-  out->all_pairs_connected = connected;
-  out->steps_count = metrics.steps;
-  out->memory_peak_bytes = metrics.peak_memory_bytes;
-  out->wall_density = compute_wall_density(table);
-  out->branch_ratio = (float)branch / (float)total;
-  out->dead_end_count = dead_end;
-  out->dead_end_ratio = (float)dead_end / (float)total;
-  out->corridor_ratio = (float)corridor / (float)total;
-  out->avg_degree = (float)degree_sum / (float)total;
-  out->cycle_count = open_edges - total + components;
-  out->diameter = (int)tasks[METRIC_DIAMETER].result;
-  out->longest_path =
-      is_tree ? out->diameter : (int)tasks[METRIC_LONGEST_PATH].result;
-  out->symmetry_score = tasks[METRIC_SYMMETRY].result;
-  out->fractal_dimension = tasks[METRIC_FRACTAL_DIMENSION].result;
-  out->aspl = tasks[METRIC_ASPL].result;
-  out->entropy = tasks[METRIC_ENTROPY].result;
-  return true;
+	out->columns = columns;
+	out->rows = rows;
+	out->seed = seed;
+	out->all_pairs_connected = connected;
+	out->steps_count = metrics.steps;
+	out->memory_peak_bytes = metrics.peak_memory_bytes;
+	out->wall_density = compute_wall_density(table);
+	out->branch_ratio = (float)branch / (float)total;
+	out->dead_end_count = dead_end;
+	out->dead_end_ratio = (float)dead_end / (float)total;
+	out->corridor_ratio = (float)corridor / (float)total;
+	out->avg_degree = (float)degree_sum / (float)total;
+	out->cycle_count = open_edges - total + components;
+	out->diameter = (int)tasks[METRIC_DIAMETER].result;
+	out->longest_path =
+		is_tree ? out->diameter : (int)tasks[METRIC_LONGEST_PATH].result;
+	out->symmetry_score = tasks[METRIC_SYMMETRY].result;
+	out->fractal_dimension = tasks[METRIC_FRACTAL_DIMENSION].result;
+	out->aspl = tasks[METRIC_ASPL].result;
+	out->entropy = tasks[METRIC_ENTROPY].result;
+	return true;
 }
 
 /* --- Combined benchmark --- */
@@ -889,12 +891,10 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 	}
 
 	clear_table(&table);
-	global_progress++;
-	print_progress(global_progress, total_progress);
 	return true;
 }
 
-static bool benchmark_algorithm_combined(const char *path, Generator generator,
+static bool benchmark_algorithm_combined(const char *name, const char *path, Generator generator,
 										 const BenchmarkGridSize *sizes,
 										 size_t sizes_count, const int *seeds,
 										 size_t seeds_count)
@@ -911,6 +911,9 @@ static bool benchmark_algorithm_combined(const char *path, Generator generator,
 		return false;
 	}
 
+	const size_t total = sizes_count * seeds_count;
+	size_t completed = 0;
+	const long long started = now_microseconds();
 	bool first_entry = true;
 	for (size_t i = 0; i < sizes_count; i++)
 	{
@@ -923,6 +926,25 @@ static bool benchmark_algorithm_combined(const char *path, Generator generator,
 				return false;
 			}
 			first_entry = false;
+            completed++;
+            if (completed % 10 == 0 || completed == total)
+            {
+                long long elapsed = (now_microseconds() - started) / 1000000;
+                /* One short write keeps concurrent process logs readable. */
+                char line[512];
+                int length = snprintf(line, sizeof(line),
+                    "[%s] %zu/%zu (%.1f%%) | elapsed %02lld:%02lld | last %dx%d seed=%d\n",
+                    name, completed, total, 100.0 * completed / total,
+                    elapsed / 60, elapsed % 60, sizes[i].columns, sizes[i].rows, seeds[s]);
+                if (length > 0 && (size_t)length < sizeof(line))
+                {
+                    ssize_t written;
+                    do
+                    {
+                        written = write(STDOUT_FILENO, line, (size_t)length);
+                    } while (written == -1 && errno == EINTR);
+                }
+            }
 		}
 	}
 
@@ -932,8 +954,7 @@ static bool benchmark_algorithm_combined(const char *path, Generator generator,
 		return false;
 	}
 
-	fclose(out);
-	return true;
+	return fclose(out) == 0;
 }
 
 static char maze_ascii_at(MazeTable table, int gx, int gy)
@@ -1049,64 +1070,97 @@ static bool write_example_mazes(void)
 	return ok;
 }
 
+/* The caller must be single-threaded when forking. Workers create their
+ * metric threads only after fork, and each worker owns a separate JSON file. */
+static bool run_benchmark_jobs(const BenchmarkJob *jobs, size_t jobs_count,
+                               const BenchmarkGridSize *sizes, size_t sizes_count,
+                               const int *seeds, size_t seeds_count)
+{
+    pid_t *children = calloc(jobs_count, sizeof(*children));
+    if (!children)
+        return false;
+
+    size_t started = 0;
+    bool success = true;
+    fflush(NULL);
+    for (size_t i = 0; i < jobs_count; i++)
+    {
+        pid_t pid = fork();
+        if (pid == -1)
+        {
+            perror("labirit: fork");
+            success = false;
+            break;
+        }
+        if (pid == 0)
+        {
+            bool ok = benchmark_algorithm_combined(jobs[i].name, jobs[i].path, jobs[i].generator,
+                                                    sizes, sizes_count, seeds, seeds_count);
+            _exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+        }
+        children[started++] = pid;
+        printf("Started %s (PID %ld)\n", jobs[i].name, (long)pid);
+        fflush(stdout);
+    }
+
+    /* All children run concurrently, even though we collect statuses in order. */
+    size_t completed = 0;
+    for (size_t i = 0; i < started; i++)
+    {
+        int status;
+        pid_t result;
+        do
+        {
+            result = waitpid(children[i], &status, 0);
+        } while (result == -1 && errno == EINTR);
+
+        if (result == -1)
+        {
+            perror("labirit: waitpid");
+            success = false;
+        }
+        else if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
+        {
+            completed++;
+            printf("Completed %s (%zu/%zu)\n", jobs[i].name, completed, jobs_count);
+            fflush(stdout);
+        }
+        else
+        {
+            if (WIFSIGNALED(status))
+                fprintf(stderr, "labirit: %s terminated by signal %d\n",
+                        jobs[i].name, WTERMSIG(status));
+            else
+                fprintf(stderr, "labirit: %s failed (status %d)\n",
+                        jobs[i].name, WEXITSTATUS(status));
+            success = false;
+        }
+    }
+    free(children);
+    return success;
+}
+
 bool run_combined_benchmarks(void)
 {
-	const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
+    const int seeds[] = {101, 202, 303, 404, 505, 606, 707, 808, 909, 1010};
+    const BenchmarkJob jobs[] = {
+        {"prim", RESULTS_DIR "/prim.json", prim_alg},
+        {"growing_tree", RESULTS_DIR "/growing_tree.json", growing_tree_alg},
+        {"watson", RESULTS_DIR "/watson.json", watson_alg},
+        {"dfs", RESULTS_DIR "/dfs.json", dfs_topology_adapter},
+        {"binary_tree", RESULTS_DIR "/binary_tree.json", binary_algos},
+        {"recursive_division", RESULTS_DIR "/recursive_division.json", recursive_division_algorithm},
+    };
+    if (!ensure_results_dir())
+        return false;
 
-	if (!ensure_results_dir())
-	{
-		return false;
-	}
-
-	const int seeds_count = sizeof(seeds) / sizeof(seeds[0]);
-	const int sizes_count =
-		sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]);
-	total_progress = 6 * sizes_count * seeds_count;
-	global_progress = 0;
-
-	printf("Running benchmarks...\n");
-
-	if (!benchmark_algorithm_combined(
-			RESULTS_DIR "/prim.json", prim_alg, TIME_BENCH_CASES,
-			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
-			sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!benchmark_algorithm_combined(RESULTS_DIR "/growing_tree.json",
-									  growing_tree_alg, TIME_BENCH_CASES,
-									  sizeof(TIME_BENCH_CASES) /
-										  sizeof(TIME_BENCH_CASES[0]),
-									  seeds, sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!benchmark_algorithm_combined(
-			RESULTS_DIR "/watson.json", watson_alg, TIME_BENCH_CASES,
-			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
-			sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!benchmark_algorithm_combined(
-			RESULTS_DIR "/dfs.json", dfs_topology_adapter, TIME_BENCH_CASES,
-			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
-			sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!benchmark_algorithm_combined(
-			RESULTS_DIR "/binary_tree.json", binary_algos, TIME_BENCH_CASES,
-			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
-			sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!benchmark_algorithm_combined(
-			RESULTS_DIR "/recursive_division.json",
-			recursive_division_algorithm, TIME_BENCH_CASES,
-			sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]), seeds,
-			sizeof(seeds) / sizeof(seeds[0])))
-		return false;
-
-	if (!write_example_mazes())
-		return false;
-
-	printf("\nBenchmarks completed.\n");
-	return true;
+    puts("Running benchmarks in 6 processes...");
+    if (!run_benchmark_jobs(jobs, sizeof(jobs) / sizeof(jobs[0]),
+                            TIME_BENCH_CASES, sizeof(TIME_BENCH_CASES) / sizeof(TIME_BENCH_CASES[0]),
+                            seeds, sizeof(seeds) / sizeof(seeds[0])))
+        return false;
+    if (!write_example_mazes())
+        return false;
+    puts("Benchmarks completed.");
+    return true;
 }
