@@ -7,6 +7,7 @@ LDLIBS ?= -lm -ldl
 TARGET := main
 BENCH_TARGET := benchmarks
 TEST_TARGET := tests_run
+TOPOLOGY_TEST_TARGET := topology_tests_run
 
 BACKEND_SRCS := \
 	backend/metrics.c \
@@ -32,10 +33,13 @@ $(TARGET): $(MAIN_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(MAIN_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 $(BENCH_TARGET): $(BENCH_SRCS) $(COMMON_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(BENCH_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread $(BENCH_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 $(TEST_TARGET): $(TEST_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
+
+$(TOPOLOGY_TEST_TARGET): tests/test_topology_threads.c analisys/combined_benchmarks.c $(BACKEND_SRCS) $(COMMON_HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread tests/test_topology_threads.c $(BACKEND_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 compile: $(TARGET)
 
@@ -45,10 +49,11 @@ run: $(TARGET)
 benchmark: $(BENCH_TARGET)
 	./$(BENCH_TARGET)
 
-test: $(TEST_TARGET)
+test: $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET)
 	./$(TEST_TARGET)
+	./$(TOPOLOGY_TEST_TARGET)
 
 clean:
-	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET)
+	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET)
 
 .PHONY: all compile run benchmark test clean
