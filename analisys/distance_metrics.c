@@ -1,34 +1,41 @@
 #include "distance_metrics.h"
-#include <immintrin.h> // Инструкции AVX2 для заполнения расстояний.
+#include <immintrin.h> // Инструкции AVX2 для заполнения расстояний
 #include <limits.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-DistanceMetrics compute_distance_metrics(MazeTable table)
+#define DISTANCE_WORKERS 2 // Общее число обработчиков, включая текущий поток.
+
+#if DISTANCE_WORKERS < 1
+#error "DISTANCE_WORKERS must be at least 1"
+#endif
+
+typedef struct // Независимые рабочие данные одного диапазона стартов
 {
-	const DistanceMetrics error = {-1.0, -1.0};
-	if (table.rows < 0 || table.columns < 0)
-		return error;
-	if (table.rows != 0 && table.columns > INT_MAX / table.rows)
-		return error;
+	MazeTable table;
+	int begin;
+	int end;
+	int *queue;
+	int *dist;
+	long long *hist;
+	double sum;
+	bool ok;
+} DistanceWorker;
+
+static void *run_distance_worker(void *arg)
+{
+	DistanceWorker *worker = arg;
+	MazeTable table = worker->table;
 	int total = table.rows * table.columns;
-	if (total <= 1)
-		return (DistanceMetrics){0.0, 0.0};
-	if (!table.data || (size_t)total > SIZE_MAX / sizeof(int) ||
-		(size_t)total > SIZE_MAX / sizeof(long long))
-		return error;
-
-	int *queue = malloc((size_t)total * sizeof(*queue));
-	int *dist = malloc((size_t)total * sizeof(*dist));
-	long long *hist = calloc((size_t)total, sizeof(*hist));
-	if (!queue || !dist || !hist)
-		goto cleanup_error;
-
-	double sum = 0.0;
-	__m256i value =
-		_mm256_set1_epi32(-1); // Восемь 32-битных значений «не посещено».
-	for (int start = 0; start < total; start++)
+	int *queue = worker->queue;
+	int *dist = worker->dist;
+	long long *hist = worker->hist;
+	__m256i value = _mm256_set1_epi32(-1);
+	for (int start = worker->begin; start < worker->end;
+		 start++) // Делим только старты; каждый BFS обходит весь лабиринт
 	{
 		int i = 0;
 		for (; total - i >= 8; i += 8)
@@ -70,36 +77,102 @@ DistanceMetrics compute_distance_metrics(MazeTable table)
 			if (v == start)
 				continue;
 			if (dist[v] < 0)
-				goto cleanup_error;
-			sum += (double)dist[v]; // Добавляем расстояние в сумму для ASPL.
-			hist[dist[v]]++;		// Одновременно учитываем его в гистограмме
-									// энтропии.
+				return NULL;
+			worker->sum += (double)dist[v]; // расстояние в сумму для ASPL
+			hist[dist[v]]++;				// энтропия
 		}
 	}
-	long long pairs =
-		(long long)total *
-		(total - 1); // Расширяем тип до умножения; считаем обе ориентации пар.
+	worker->ok = true;
+	return NULL; // Результат сохраняется в контексте, а не возвращаемом
+				 // указателе
+}
+
+DistanceMetrics compute_distance_metrics(MazeTable table)
+{
+	const DistanceMetrics error = {-1.0, -1.0};
+	if (table.rows < 0 || table.columns < 0)
+		return error;
+	if (table.rows != 0 && table.columns > INT_MAX / table.rows)
+		return error;
+	int total = table.rows * table.columns;
+	if (total <= 1)
+		return (DistanceMetrics){0.0, 0.0};
+	if (!table.data || (size_t)total > SIZE_MAX / sizeof(int) ||
+		(size_t)total > SIZE_MAX / sizeof(long long))
+		return error;
+
+	// Не создаём обработчики без стартовых клеток на маленьких сетках.
+	int workers_count = total < DISTANCE_WORKERS ? total : DISTANCE_WORKERS;
+	DistanceWorker workers[DISTANCE_WORKERS] = {0}; // Нулевые указатели безопасны при частичном выделении.
+	pthread_t threads[DISTANCE_WORKERS]; // Дескрипторы дополнительных потоков.
+	bool started[DISTANCE_WORKERS] = {false}; // Запоминаем, какие потоки нужно дождаться.
+	for (int i = 0; i < workers_count; i++)
+	{
+		workers[i].table = table; // Общий лабиринт доступен только для чтения.
+		workers[i].begin = (int)((long long)total * i / workers_count); // Начало включительно.
+		workers[i].end = (int)((long long)total * (i + 1) / workers_count); // Конец не включается.
+		workers[i].queue = malloc((size_t)total * sizeof(int));
+		workers[i].dist = malloc((size_t)total * sizeof(int));
+		workers[i].hist = calloc((size_t)total, sizeof(long long));
+		if (!workers[i].queue || !workers[i].dist || !workers[i].hist)
+			goto cleanup_error; // Все выделения проверяем до запуска потоков.
+	}
+	for (int i = 0; i < workers_count - 1; i++) // Последний диапазон оставляем текущему потоку.
+		started[i] = pthread_create(&threads[i], NULL, run_distance_worker, &workers[i]) == 0;
+	run_distance_worker(&workers[workers_count - 1]); // Текущий поток тоже выполняет полезную работу.
+	for (int i = 0; i < workers_count - 1; i++)
+	{
+		if (!started[i]) // Отказ запуска компенсируем последовательным выполнением.
+			run_distance_worker(&workers[i]);
+	}
+	for (int i = 0; i < workers_count - 1; i++)
+	{
+		if (started[i] && pthread_join(threads[i], NULL) != 0)
+		{
+			fputs("labirit: failed to join distance worker\n", stderr);
+			abort(); // Нельзя освобождать контекст, пока поток может его использовать.
+		}
+	}
+	for (int i = 0; i < workers_count; i++) // Читаем результаты только после завершения всех потоков.
+	{
+		if (!workers[i].ok)
+			goto cleanup_error;
+	}
+
+	double sum = workers[0].sum; // Начинаем объединение с первого обработчика.
+	long long *hist = workers[0].hist; // Используем его буфер без дополнительного выделения.
+	for (int i = 1; i < workers_count; i++)
+	{
+		sum += workers[i].sum; // Суммируем расстояния всех диапазонов.
+		for (int d = 1; d < total; d++)
+			hist[d] += workers[i].hist[d]; // Складываем частоты перед расчётом энтропии.
+	}
+	long long pairs = (long long)total * (total - 1);
 	DistanceMetrics result = {sum / (double)pairs,
-							  0.0}; // Нормируем сумму расстояний.
-	const double inv_ln2 =
-		1.0 /
-		log(2.0); // Сохраняем способ вычисления логарифма исходной версии.
+							  0.0}; // Нормируем сумму расстояний
+	const double inv_ln2 = 1.0 / log(2.0);
 	for (int d = 1; d < total; d++)
 	{
-		if (hist[d] == 0) // Нулевая вероятность не вносит вклада в энтропию.
+		if (hist[d] == 0)
 			continue;
 		double p =
-			(double)hist[d] / (double)pairs; // Доля пар с данным расстоянием.
+			(double)hist[d] / (double)pairs; // Доля пар с данным расстоянием
 		result.entropy -= p * (log(p) * inv_ln2);
 	}
-	free(queue);
-	free(dist);
-	free(hist);
+	for (int i = 0; i < workers_count; i++)
+	{
+		free(workers[i].queue);
+		free(workers[i].dist);
+		free(workers[i].hist);
+	}
 	return result;
 
 cleanup_error:
-	free(queue);
-	free(dist);
-	free(hist);
+	for (int i = 0; i < workers_count; i++)
+	{
+		free(workers[i].queue);
+		free(workers[i].dist);
+		free(workers[i].hist);
+	}
 	return error;
 }

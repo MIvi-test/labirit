@@ -1,20 +1,22 @@
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdatomic.h> // Вложенный запуск потоков тоже обращается к счётчику.
 
-static int launches;
+static atomic_int launches; // Счётчик запусков доступен из нескольких потоков.
 static int fail_every;
 
 static int test_thread_create(pthread_t *thread, const pthread_attr_t *attr,
                               void *(*entry)(void *), void *arg) {
-  launches++;
-  if (fail_every && launches % fail_every == 0)
+  int launch = atomic_fetch_add(&launches, 1) + 1; // Получаем уникальный номер запуска.
+  if (fail_every && launch % fail_every == 0)
     return EAGAIN;
   return pthread_create(thread, attr, entry, arg);
 }
 
 #define pthread_create test_thread_create
 #include "../analisys/combined_benchmarks.c"
+#include "../analisys/distance_metrics.c" // Проверяем также отказы создания внутреннего потока.
 #undef pthread_create
 #include "distance_metrics_reference.h" // Сравниваем с прежними независимыми расчётами.
 
@@ -46,6 +48,8 @@ static void check_report(MazeTable table) {
   for (size_t i = 0; i < sizeof(failures) / sizeof(failures[0]); i++) {
     launches = 0;
     fail_every = failures[i];
+    DistanceMetrics distances = compute_distance_metrics(table); // Проверяем прямой вызов и fallback.
+    assert(distances.aspl == aspl && distances.entropy == entropy);
     assert(analyze_topology(table, &actual, table.columns, table.rows,
                             table.seed, metrics));
     assert(actual.columns == table.columns && actual.rows == table.rows);

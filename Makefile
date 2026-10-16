@@ -51,7 +51,7 @@ $(TEST_TARGET): $(METRICS_CONFIG) $(TEST_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 $(TOPOLOGY_TEST_TARGET): $(METRICS_CONFIG) tests/test_topology_threads.c tests/distance_metrics_reference.h analisys/combined_benchmarks.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS) $(COMMON_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread tests/test_topology_threads.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread tests/test_topology_threads.c $(BACKEND_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 compile: $(TARGET)
 
