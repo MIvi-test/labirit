@@ -16,6 +16,7 @@ static int test_thread_create(pthread_t *thread, const pthread_attr_t *attr,
 #define pthread_create test_thread_create
 #include "../analisys/combined_benchmarks.c"
 #undef pthread_create
+#include "distance_metrics_reference.h" // Сравниваем с прежними независимыми расчётами.
 
 static void check_report(MazeTable table) {
   TopologyReport actual;
@@ -80,6 +81,17 @@ int main(void) {
       check_report(table);
       clear_table(&table);
     }
+
+  /* Проверяем SIMD-хвост, полный блок и узкие сетки по старому эталону. */
+  const int dimensions[][2] = {{1, 1}, {7, 1}, {8, 1}, {9, 1},
+                               {1, 7}, {1, 8}, {1, 9}, {3, 5}};
+  for (size_t i = 0; i < sizeof(dimensions) / sizeof(dimensions[0]); i++) {
+    MazeTable narrow = init_table(dimensions[i][0], dimensions[i][1], 101);
+    assert(narrow.data);
+    binary_algos(narrow);
+    check_report(narrow);
+    clear_table(&narrow);
+  }
 
   MazeTable table = init_table(2, 2, 101);
   assert(table.data);

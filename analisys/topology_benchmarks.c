@@ -1,6 +1,7 @@
 #include "../backend/all_algorithms.h"
 #include "../deter.h"
 #include "benchmark_formats.h"
+#include "distance_metrics.h" // Используем ту же реализацию, что и combined_benchmarks.
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -156,188 +157,6 @@ static bool bfs_connected(MazeTable table, int start)
     return ok;
 }
 
-static double compute_aspl_slow(MazeTable table)
-{
-    int total = table.rows * table.columns;
-    if (total <= 1)
-    {
-        return 0.0;
-    }
-
-    /* Intentionally slow \(O(V^2)\) implementation.
-       Guardrail removed by request. */
-
-    double sum = 0.0;
-
-    for (int start = 0; start < total; start++)
-    {
-        int *queue = (int *)malloc(sizeof(int) * total);
-        int *dist = (int *)malloc(sizeof(int) * total);
-        if (!queue || !dist)
-        {
-            free(queue);
-            free(dist);
-            return -1.0;
-        }
-
-        for (int i = 0; i < total; i++)
-        {
-            dist[i] = -1;
-        }
-
-        int head = 0;
-        int tail = 0;
-        queue[tail++] = start;
-        dist[start] = 0;
-
-        while (head < tail)
-        {
-            int cur = queue[head++];
-            int x = cur % table.columns;
-            int y = cur / table.columns;
-
-            int neighbors[4];
-            int count = 0;
-            if (table.data[y][x].wall.top == 0 && y > 0)
-                neighbors[count++] = (y - 1) * table.columns + x;
-            if (table.data[y][x].wall.right == 0 && x < table.columns - 1)
-                neighbors[count++] = y * table.columns + x + 1;
-            if (table.data[y][x].wall.bottom == 0 && y < table.rows - 1)
-                neighbors[count++] = (y + 1) * table.columns + x;
-            if (table.data[y][x].wall.left == 0 && x > 0)
-                neighbors[count++] = y * table.columns + x - 1;
-
-            for (int i = 0; i < count; i++)
-            {
-                int next = neighbors[i];
-                if (dist[next] == -1)
-                {
-                    dist[next] = dist[cur] + 1;
-                    queue[tail++] = next;
-                }
-            }
-        }
-
-        for (int v = 0; v < total; v++)
-        {
-            if (v == start)
-                continue;
-            if (dist[v] < 0)
-            {
-                free(dist);
-                free(queue);
-                return -1.0;
-            }
-            sum += (double)dist[v];
-        }
-
-        free(dist);
-        free(queue);
-    }
-
-    return sum / (double)(total * (total - 1));
-}
-
-static double compute_distance_entropy_slow(MazeTable table)
-{
-    int total = table.rows * table.columns;
-    if (total <= 1)
-    {
-        return 0.0;
-    }
-
-    long long pairs = (long long)total * (long long)(total - 1);
-    long long *hist = (long long *)calloc((size_t)total, sizeof(long long));
-    if (!hist)
-    {
-        return -1.0;
-    }
-
-    for (int start = 0; start < total; start++)
-    {
-        int *queue = (int *)malloc(sizeof(int) * total);
-        int *dist = (int *)malloc(sizeof(int) * total);
-        if (!queue || !dist)
-        {
-            free(queue);
-            free(dist);
-            free(hist);
-            return -1.0;
-        }
-
-        for (int i = 0; i < total; i++)
-        {
-            dist[i] = -1;
-        }
-
-        int head = 0;
-        int tail = 0;
-        queue[tail++] = start;
-        dist[start] = 0;
-
-        while (head < tail)
-        {
-            int cur = queue[head++];
-            int x = cur % table.columns;
-            int y = cur / table.columns;
-
-            int neighbors[4];
-            int count = 0;
-            if (table.data[y][x].wall.top == 0 && y > 0)
-                neighbors[count++] = (y - 1) * table.columns + x;
-            if (table.data[y][x].wall.right == 0 && x < table.columns - 1)
-                neighbors[count++] = y * table.columns + x + 1;
-            if (table.data[y][x].wall.bottom == 0 && y < table.rows - 1)
-                neighbors[count++] = (y + 1) * table.columns + x;
-            if (table.data[y][x].wall.left == 0 && x > 0)
-                neighbors[count++] = y * table.columns + x - 1;
-
-            for (int i = 0; i < count; i++)
-            {
-                int next = neighbors[i];
-                if (dist[next] == -1)
-                {
-                    dist[next] = dist[cur] + 1;
-                    queue[tail++] = next;
-                }
-            }
-        }
-
-        for (int v = 0; v < total; v++)
-        {
-            if (v == start)
-                continue;
-            if (dist[v] < 0)
-            {
-                free(dist);
-                free(queue);
-                free(hist);
-                return -1.0;
-            }
-            if (dist[v] < total)
-            {
-                hist[dist[v]]++;
-            }
-        }
-
-        free(dist);
-        free(queue);
-    }
-
-    double h = 0.0;
-    const double inv_ln2 = 1.0 / log(2.0);
-    for (int d = 1; d < total; d++)
-    {
-        if (hist[d] <= 0)
-            continue;
-        double p = (double)hist[d] / (double)pairs;
-        h -= p * (log(p) * inv_ln2);
-    }
-
-    free(hist);
-    return h;
-}
-
 static bool analyze_topology(MazeTable table, TopologyReport *out, int columns, int rows, int seed)
 {
     if (!out || !table.data)
@@ -380,8 +199,11 @@ static bool analyze_topology(MazeTable table, TopologyReport *out, int columns, 
     out->corridor_ratio = (float)corridor / (float)total;
     out->avg_degree = (float)degree_sum / (float)total;
     out->diameter = diameter;
-    out->aspl = out->all_pairs_connected ? compute_aspl_slow(table) : -1.0;
-    out->entropy = out->all_pairs_connected ? compute_distance_entropy_slow(table) : -1.0;
+    DistanceMetrics distances = {-1.0, -1.0}; // Значения для несвязного графа.
+    if (out->all_pairs_connected) // Расстояния между всеми парами должны существовать.
+        distances = compute_distance_metrics(table); // Один расчёт вместо двух наборов BFS.
+    out->aspl = distances.aspl; // Записываем среднее расстояние в отчёт.
+    out->entropy = distances.entropy; // Записываем энтропию в отчёт.
     return true;
 }
 
