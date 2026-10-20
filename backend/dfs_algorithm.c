@@ -2,110 +2,110 @@
 
 bool dfs_algorithm(MazeTable table)
 {
-    LABIRIT_STEPS_DECLARE();
-    if (!table.data || table.rows <= 0 || table.columns <= 0)
-    {
-        LABIRIT_STEPS_COMMIT();
-        return false;
-    }
+	LABIRIT_STEPS_DECLARE();
+	if (!table.data || table.rows <= 0 || table.columns <= 0)
+	{
+		LABIRIT_STEPS_COMMIT();
+		return false;
+	}
 
-    int total = table.rows * table.columns;
-    bool *visited = (bool *)calloc((size_t)total, sizeof(bool));
-    int *stack = (int *)malloc(sizeof(int) * (size_t)total);
+	int total = table.rows * table.columns;
+	bool *visited = (bool *)calloc((size_t)total, sizeof(bool));
+	int *stack = (int *)malloc(sizeof(int) * (size_t)total);
 
-    if (!visited || !stack)
-    {
-        free(visited);
-        free(stack);
-        LABIRIT_STEPS_COMMIT();
-        return false;
-    }
-    labirit_metrics_alloc((size_t)total * sizeof(bool));
-    labirit_metrics_alloc((size_t)total * sizeof(int));
+	if (!visited || !stack)
+	{
+		free(visited);
+		free(stack);
+		LABIRIT_STEPS_COMMIT();
+		return false;
+	}
+	labirit_metrics_alloc((size_t)total * sizeof(bool));
+	labirit_metrics_alloc((size_t)total * sizeof(int));
 
-    int sp = 0;
-    int start = 0;
-    visited[start] = true;
-    stack[sp++] = start;
+	int sp = 0;
+	int start = 0;
+	visited[start] = true;
+	stack[sp++] = start;
 
-    while (sp > 0)
-    {
-        LABIRIT_STEPS_ADD(1);
-        int cur = stack[sp - 1];
-        int x = cur % table.columns;
-        int y = cur / table.columns;
+	while (sp > 0)
+	{
+		LABIRIT_STEPS_ADD(1);
+		int cur = stack[sp - 1];
+		int x = cur % table.columns;
+		int y = cur / table.columns;
 
-        int neighbors[4];
-        int count = 0;
+		int neighbors[4];
+		int count = 0;
 
-        if (y > 0)
-        {
-            LABIRIT_STEPS_ADD(1);
-            int next = (y - 1) * table.columns + x;
-            if (!visited[next])
-                neighbors[count++] = next;
-        }
-        if (x + 1 < table.columns)
-        {
-            LABIRIT_STEPS_ADD(1);
-            int next = y * table.columns + (x + 1);
-            if (!visited[next])
-                neighbors[count++] = next;
-        }
-        if (y + 1 < table.rows)
-        {
-            LABIRIT_STEPS_ADD(1);
-            int next = (y + 1) * table.columns + x;
-            if (!visited[next])
-                neighbors[count++] = next;
-        }
-        if (x > 0)
-        {
-            LABIRIT_STEPS_ADD(1);
-            int next = y * table.columns + (x - 1);
-            if (!visited[next])
-                neighbors[count++] = next;
-        }
+		if (y > 0)
+		{
+			LABIRIT_STEPS_ADD(1);
+			int next = (y - 1) * table.columns + x;
+			if (!visited[next])
+				neighbors[count++] = next;
+		}
+		if (x + 1 < table.columns)
+		{
+			LABIRIT_STEPS_ADD(1);
+			int next = y * table.columns + (x + 1);
+			if (!visited[next])
+				neighbors[count++] = next;
+		}
+		if (y + 1 < table.rows)
+		{
+			LABIRIT_STEPS_ADD(1);
+			int next = (y + 1) * table.columns + x;
+			if (!visited[next])
+				neighbors[count++] = next;
+		}
+		if (x > 0)
+		{
+			LABIRIT_STEPS_ADD(1);
+			int next = y * table.columns + (x - 1);
+			if (!visited[next])
+				neighbors[count++] = next;
+		}
 
-        if (count == 0)
-        {
-            sp--;
-            continue;
-        }
+		if (count == 0)
+		{
+			sp--;
+			continue;
+		}
 
-        int next = neighbors[rand() % count];
-        int nx = next % table.columns;
-        int ny = next / table.columns;
+		int next = neighbors[rand() % count];
+		int nx = next % table.columns;
+		int ny = next / table.columns;
 
-        if (nx == x + 1 && ny == y)
-        {
-            table.data[y][x].wall.right = 0;
-            table.data[y][x + 1].wall.left = 0;
-        }
-        else if (nx == x - 1 && ny == y)
-        {
-            table.data[y][x].wall.left = 0;
-            table.data[y][x - 1].wall.right = 0;
-        }
-        else if (ny == y + 1 && nx == x)
-        {
-            table.data[y][x].wall.bottom = 0;
-            table.data[y + 1][x].wall.top = 0;
-        }
-        else if (ny == y - 1 && nx == x)
-        {
-            table.data[y][x].wall.top = 0;
-            table.data[y - 1][x].wall.bottom = 0;
-        }
+		if (nx == x + 1 && ny == y)
+		{
+			table.data[y][x].wall.right = 0;
+			table.data[y][x + 1].wall.left = 0;
+		}
+		else if (nx == x - 1 && ny == y)
+		{
+			table.data[y][x].wall.left = 0;
+			table.data[y][x - 1].wall.right = 0;
+		}
+		else if (ny == y + 1 && nx == x)
+		{
+			table.data[y][x].wall.bottom = 0;
+			table.data[y + 1][x].wall.top = 0;
+		}
+		else if (ny == y - 1 && nx == x)
+		{
+			table.data[y][x].wall.top = 0;
+			table.data[y - 1][x].wall.bottom = 0;
+		}
 
-        visited[next] = true;
-        stack[sp++] = next;
-    }
+		visited[next] = true;
+		stack[sp++] = next;
+	}
 
-    free(stack);
-    labirit_metrics_free((size_t)total * sizeof(int));
-    free(visited);
-    labirit_metrics_free((size_t)total * sizeof(bool));
-    LABIRIT_STEPS_COMMIT();
-    return true;
+	free(stack);
+	labirit_metrics_free((size_t)total * sizeof(int));
+	free(visited);
+	labirit_metrics_free((size_t)total * sizeof(bool));
+	LABIRIT_STEPS_COMMIT();
+	return true;
 }

@@ -180,6 +180,8 @@ static bool check_connected(const char *alg, MazeTable t)
     return ok;
 }
 
+#include "growing_tree_reference.h"
+
 static bool run_one(const Algorithm *alg, int cols, int rows, int seed)
 {
     MazeTable t = init_table((unsigned int)cols, (unsigned int)rows, (unsigned int)seed);
@@ -189,9 +191,43 @@ static bool run_one(const Algorithm *alg, int cols, int rows, int seed)
         return false;
     }
 
+    size_t memory_before = labirit_metrics_snapshot().current_memory_bytes;
     alg->fn(t);
 
     bool ok = true;
+    if (alg->fn == growing_tree_alg)
+    {
+        if (labirit_metrics_snapshot().current_memory_bytes != memory_before)
+        {
+            fprintf(stderr, "[growing_tree] temporary memory not released\n");
+            ok = false;
+        }
+        int following_random = rand();
+        MazeTable reference = init_table(cols, rows, seed);
+        if (!reference.data)
+        {
+            clear_table(&t);
+            return false;
+        }
+        growing_tree_reference(reference);
+        ok = (rand() == following_random) && ok;
+        size_t edges = 0;
+        for (int y = 0; y < rows; y++)
+        {
+            ok = (memcmp(t.data[y], reference.data[y],
+                         (size_t)cols * sizeof(Cell)) == 0) && ok;
+            for (int x = 0; x < cols; x++)
+            {
+                edges += x + 1 < cols && !t.data[y][x].wall.right;
+                edges += y + 1 < rows && !t.data[y][x].wall.bottom;
+            }
+        }
+        ok = (edges == (size_t)rows * cols - 1) && ok;
+        if (!ok)
+            fprintf(stderr, "[growing_tree] reference/edge/memory mismatch %dx%d seed=%d\n",
+                    cols, rows, seed);
+        clear_table(&reference);
+    }
     ok = check_symmetry(alg->name, t) && ok;
     ok = check_boundary_closed(alg->name, t) && ok;
     ok = check_connected(alg->name, t) && ok;
@@ -235,7 +271,8 @@ int main(int argc, char **argv)
         {"recursive_division", recursive_division_algorithm},
     };
 
-    const int sizes[][2] = {{2, 2}, {3, 3}, {4, 4}, {8, 8}, {16, 12}};
+    const int sizes[][2] = {{2, 2}, {3, 3}, {4, 4}, {8, 8}, {16, 12},
+                            {1, 1}, {1, 32}, {32, 1}, {3, 47}, {47, 3}, {64, 64}};
     const int seeds[] = {1, 2, 3, 101, 202};
 
     const char *only_alg = get_arg_value(argc, argv, "--alg");
@@ -252,6 +289,9 @@ int main(int argc, char **argv)
         }
         for (size_t s = 0; s < sizeof(sizes) / sizeof(sizes[0]); s++)
         {
+            /* Extra task-06 cases exercise the changed generator only. */
+            if (s >= 5 && algs[a].fn != growing_tree_alg)
+                continue;
             for (size_t k = 0; k < sizeof(seeds) / sizeof(seeds[0]); k++)
             {
                 total++;
@@ -280,4 +320,3 @@ int main(int argc, char **argv)
     fprintf(stderr, "FAIL: %d/%d tests failed\n", failures, total);
     return 1;
 }
-
