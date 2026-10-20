@@ -3,8 +3,10 @@
 
 void binary_algos(MazeTable table)
 {
+    LABIRIT_STEPS_DECLARE();
     if (!table.data || table.rows <= 0 || table.columns <= 0)
     {
+        LABIRIT_STEPS_COMMIT();
         return;
     }
 
@@ -12,7 +14,6 @@ void binary_algos(MazeTable table)
     {
         for (int x = 0; x < table.columns; x++)
         {
-            labirit_metrics_step(1);
             if (x == table.columns - 1 && y == table.rows - 1)
             {
                 continue;
@@ -33,5 +34,7 @@ void binary_algos(MazeTable table)
             }
         }
     }
+    LABIRIT_STEPS_ADD((long long)table.rows * table.columns);
+    LABIRIT_STEPS_COMMIT();
     return;
 }

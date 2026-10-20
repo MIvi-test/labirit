@@ -1,12 +1,16 @@
+.DEFAULT_GOAL := all
 CC ?= cc
-CFLAGS ?= -Wall -Wextra -Werror -std=c23 -g
+CFLAGS ?= -Wall -Wextra -Werror -std=c23 -g -mavx2
 CPPFLAGS ?= -D_GNU_SOURCE
+METRICS ?= 1
+override CPPFLAGS += -DLABIRIT_METRICS_ENABLED=$(METRICS)
 LDFLAGS ?=
 LDLIBS ?= -lm -ldl
 
 TARGET := main
 BENCH_TARGET := benchmarks
 TEST_TARGET := tests_run
+TOPOLOGY_TEST_TARGET := topology_tests_run
 
 BACKEND_SRCS := \
 	backend/metrics.c \
@@ -22,20 +26,32 @@ FRONTEND_SRCS := frontend/graph.c
 COMMON_HEADERS := $(wildcard *.h backend/*.h frontend/*.h analisys/*.h)
 
 MAIN_SRCS := main.c json_parser.c $(BACKEND_SRCS) $(FRONTEND_SRCS)
-BENCH_SRCS := analisys/benchmarks_main.c analisys/combined_benchmarks.c $(BACKEND_SRCS)
+# Общая реализация метрик подключается к бенчмарку и его тестам.
+DISTANCE_METRICS_SRC := analisys/distance_metrics.c
+BENCH_SRCS := analisys/benchmarks_main.c analisys/combined_benchmarks.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS)
 TEST_SRCS := tests/test_algorithms.c $(BACKEND_SRCS)
+
+METRICS_CONFIG := .metrics-config
+.PHONY: FORCE
+FORCE:
+
+$(METRICS_CONFIG): FORCE
+	@printf '%s\n' '$(METRICS)' | cmp -s - $@ || printf '%s\n' '$(METRICS)' > $@
 
 # Default behavior: build and run the maze generator.
 all: run
 
-$(TARGET): $(MAIN_SRCS) $(COMMON_HEADERS)
+$(TARGET): $(METRICS_CONFIG) $(MAIN_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(MAIN_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(BENCH_TARGET): $(BENCH_SRCS) $(COMMON_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(BENCH_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
+$(BENCH_TARGET): $(METRICS_CONFIG) $(BENCH_SRCS) $(COMMON_HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread $(BENCH_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(TEST_TARGET): $(TEST_SRCS) $(COMMON_HEADERS)
+$(TEST_TARGET): $(METRICS_CONFIG) $(TEST_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
+
+$(TOPOLOGY_TEST_TARGET): $(METRICS_CONFIG) tests/test_topology_threads.c tests/distance_metrics_reference.h analisys/combined_benchmarks.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS) $(COMMON_HEADERS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread tests/test_topology_threads.c $(BACKEND_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 compile: $(TARGET)
 
@@ -45,10 +61,11 @@ run: $(TARGET)
 benchmark: $(BENCH_TARGET)
 	./$(BENCH_TARGET)
 
-test: $(TEST_TARGET)
+test: $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET)
 	./$(TEST_TARGET)
+	./$(TOPOLOGY_TEST_TARGET)
 
 clean:
-	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET)
+	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET) $(METRICS_CONFIG)
 
 .PHONY: all compile run benchmark test clean

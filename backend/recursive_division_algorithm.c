@@ -2,11 +2,12 @@
 
 static void open_all_internal_walls(MazeTable table)
 {
+    LABIRIT_STEPS_DECLARE();
+    LABIRIT_STEPS_ADD((long long)table.rows * table.columns);
     for (int y = 0; y < table.rows; y++)
     {
         for (int x = 0; x < table.columns; x++)
         {
-            labirit_metrics_step(1);
             if (x + 1 < table.columns)
             {
                 table.data[y][x].wall.right = 0;
@@ -19,13 +20,16 @@ static void open_all_internal_walls(MazeTable table)
             }
         }
     }
+    LABIRIT_STEPS_COMMIT();
 }
 
 static void divide(int x, int y, int w, int h, MazeTable table)
 {
-    labirit_metrics_step(1);
+    LABIRIT_STEPS_DECLARE();
+    LABIRIT_STEPS_ADD(1);
     if (w <= 1 || h <= 1)
     {
+        LABIRIT_STEPS_COMMIT();
         return;
     }
 
@@ -40,11 +44,11 @@ static void divide(int x, int y, int w, int h, MazeTable table)
     if (horizontal)
     {
         int wall_y = y + (rand() % (h - 1));      /* wall between wall_y and wall_y+1 */
+        LABIRIT_STEPS_ADD(w);
         int passage_x = x + (rand() % w);         /* one gap */
 
         for (int i = 0; i < w; i++)
         {
-            labirit_metrics_step(1);
             int cx = x + i;
             if (cx == passage_x)
             {
@@ -60,11 +64,11 @@ static void divide(int x, int y, int w, int h, MazeTable table)
     else
     {
         int wall_x = x + (rand() % (w - 1));      /* wall between wall_x and wall_x+1 */
+        LABIRIT_STEPS_ADD(h);
         int passage_y = y + (rand() % h);         /* one gap */
 
         for (int j = 0; j < h; j++)
         {
-            labirit_metrics_step(1);
             int cy = y + j;
             if (cy == passage_y)
             {
@@ -77,6 +81,7 @@ static void divide(int x, int y, int w, int h, MazeTable table)
         divide(x, y, (wall_x - x + 1), h, table);
         divide(wall_x + 1, y, (x + w - (wall_x + 1)), h, table);
     }
+    LABIRIT_STEPS_COMMIT();
 }
 
 void recursive_division_algorithm(MazeTable table)

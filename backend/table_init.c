@@ -2,6 +2,7 @@
 
 MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
 {
+    LABIRIT_STEPS_DECLARE();
     srand(seed);
     MazeTable table;
     table.columns = columns;
@@ -13,6 +14,7 @@ MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
 
     if (!data)
     {
+        LABIRIT_STEPS_COMMIT();
         return table;
     }
     labirit_metrics_alloc(rows * sizeof(Cell *));
@@ -28,19 +30,22 @@ MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
             }
             free(data);
             labirit_metrics_free(rows * sizeof(Cell *));
+            LABIRIT_STEPS_COMMIT();
             return table;
         }
         labirit_metrics_alloc(columns * sizeof(Cell));
         data[j] = p;
+        LABIRIT_STEPS_ADD(columns);
         for (unsigned int i = 0; i < columns; i++)
         {
-            labirit_metrics_step(1);
             Cell obj;
             obj.all_bits = 0xFF;
             data[j][i] = obj;
         }
     }
     table.data = data;
+
+    LABIRIT_STEPS_COMMIT();
 
     return table;
 }
