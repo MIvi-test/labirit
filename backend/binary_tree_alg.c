@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include "../deter.h"
 
+_Static_assert(RAND_MAX == 2147483647, "Bit batching requires a 31-bit rand()");
+
 void binary_algos(MazeTable table)
 {
     LABIRIT_STEPS_DECLARE();
@@ -9,6 +11,9 @@ void binary_algos(MazeTable table)
         LABIRIT_STEPS_COMMIT();
         return;
     }
+
+    unsigned int random_bits = 0;
+    unsigned int bits_left = 0;
 
     for (int y = 0; y < table.rows; y++)
     {
@@ -22,7 +27,20 @@ void binary_algos(MazeTable table)
             bool can_right = (x + 1 < table.columns);
             bool can_bottom = (y + 1 < table.rows);
 
-            if (can_right && (!can_bottom || (rand() % 2 == 0)))
+            bool go_right = can_right;
+            if (can_right && can_bottom)
+            {
+                if (bits_left == 0)
+                {
+                    random_bits = (unsigned int)rand();
+                    bits_left = 31;
+                }
+                go_right = (random_bits & 1u) == 0;
+                random_bits >>= 1;
+                bits_left--;
+            }
+
+            if (go_right)
             {
                 table.data[y][x].wall.right = 0;
                 table.data[y][x + 1].wall.left = 0;

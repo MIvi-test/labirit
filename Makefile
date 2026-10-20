@@ -11,6 +11,10 @@ TARGET := main
 BENCH_TARGET := benchmarks
 TEST_TARGET := tests_run
 TOPOLOGY_TEST_TARGET := topology_tests_run
+PRELOAD_TARGET := libfast_random.so
+PRELOAD_COUNT_TARGET := libfast_random_counted.so
+PRELOAD_TEST_TARGET := rand_preload_tests_run
+PRELOAD_CFLAGS ?= -std=c23 -O3 -Wall -Wextra -Werror -fPIC -fvisibility=hidden
 
 BACKEND_SRCS := \
 	backend/metrics.c \
@@ -55,6 +59,21 @@ $(TOPOLOGY_TEST_TARGET): $(METRICS_CONFIG) tests/test_topology_threads.c tests/d
 
 compile: $(TARGET)
 
+$(PRELOAD_TARGET): preload/rand.c
+	$(CC) $(PRELOAD_CFLAGS) -shared -pthread $< -o $@ $(LDFLAGS) -Wl,-z,defs
+
+$(PRELOAD_COUNT_TARGET): preload/rand.c
+	$(CC) $(PRELOAD_CFLAGS) -DLABIRIT_PRELOAD_COUNT_CALLS=1 -shared -pthread $< -o $@ $(LDFLAGS) -Wl,-z,defs
+
+$(PRELOAD_TEST_TARGET): tests/test_rand_preload.c
+	$(CC) -std=c23 -O2 -g -Wall -Wextra -Werror -pthread $< -o $@ $(LDFLAGS)
+
+rand-preload: $(PRELOAD_TARGET) $(PRELOAD_COUNT_TARGET)
+
+test-rand-preload: rand-preload $(PRELOAD_TEST_TARGET)
+	LD_PRELOAD="$(CURDIR)/$(PRELOAD_TARGET)" ./$(PRELOAD_TEST_TARGET)
+	LD_PRELOAD="$(CURDIR)/$(PRELOAD_COUNT_TARGET)" ./$(PRELOAD_TEST_TARGET)
+
 run: $(TARGET)
 	./$(TARGET)
 
@@ -66,6 +85,6 @@ test: $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET)
 	./$(TOPOLOGY_TEST_TARGET)
 
 clean:
-	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET) $(METRICS_CONFIG)
+	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET) $(PRELOAD_TARGET) $(PRELOAD_COUNT_TARGET) $(PRELOAD_TEST_TARGET) $(METRICS_CONFIG)
 
-.PHONY: all compile run benchmark test clean
+.PHONY: all compile run benchmark test clean rand-preload test-rand-preload
