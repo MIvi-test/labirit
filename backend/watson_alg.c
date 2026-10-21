@@ -1,4 +1,6 @@
 #include "../deter.h"
+#include <limits.h>
+#include <stdint.h>
 
 #define WATSON_IN_MAZE(cell) ((cell).wall.top)
 #define WATSON_IN_WALK(cell) ((cell).wall.right)
@@ -140,7 +142,9 @@ static int watson_random_neighbour(MazeTable table, int x, int y)
 void watson_alg(MazeTable table)
 {
     LABIRIT_STEPS_DECLARE();
-    if (!table.data || table.rows <= 0 || table.columns <= 0)
+    if (!table.data || table.rows <= 0 || table.columns <= 0 ||
+        table.rows > INT_MAX / table.columns ||
+        (size_t)table.rows * table.columns > SIZE_MAX / sizeof(int))
     {
         LABIRIT_STEPS_COMMIT();
         return;
@@ -177,7 +181,8 @@ void watson_alg(MazeTable table)
     WATSON_SET_IN_MAZE(state[first_y][first_x]);
 
     int max_path = table.rows * table.columns;
-    int *path = (int *)malloc(sizeof(int) * max_path);
+    int capacity = max_path < 64 ? max_path : 64;
+    int *path = malloc(sizeof(int) * (size_t)capacity);
     if (!path)
     {
         for (int y = 0; y < table.rows; y++)
@@ -190,7 +195,7 @@ void watson_alg(MazeTable table)
         LABIRIT_STEPS_COMMIT();
         return;
     }
-    labirit_metrics_alloc((size_t)max_path * sizeof(int));
+    labirit_metrics_alloc((size_t)capacity * sizeof(int));
 
     while (watson_has_unvisited(table, state))
     {
@@ -235,6 +240,18 @@ void watson_alg(MazeTable table)
             {
                 if (path_len < max_path)
                 {
+                    if (path_len == capacity)
+                    {
+                        int grown = capacity > max_path / 2 ? max_path : capacity * 2;
+                        int *replacement = realloc(path, (size_t)grown * sizeof(int));
+                        if (!replacement)
+                            goto cleanup;
+                        /* Conservatively account for both blocks during a moving realloc. */
+                        labirit_metrics_alloc((size_t)grown * sizeof(int));
+                        labirit_metrics_free((size_t)capacity * sizeof(int));
+                        path = replacement;
+                        capacity = grown;
+                    }
                     path[path_len] = next;
                     WATSON_SET_IN_WALK(state[next_y][next_x]);
                     path_len++;
@@ -265,8 +282,9 @@ void watson_alg(MazeTable table)
         }
     }
 
+cleanup:
     free(path);
-    labirit_metrics_free((size_t)max_path * sizeof(int));
+    labirit_metrics_free((size_t)capacity * sizeof(int));
     for (int y = 0; y < table.rows; y++)
     {
         free(state[y]);
