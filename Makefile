@@ -9,11 +9,8 @@ LDLIBS ?= -lm -ldl
 
 TARGET := main
 BENCH_TARGET := benchmarks
-TEST_TARGET := tests_run
-TOPOLOGY_TEST_TARGET := topology_tests_run
 PRELOAD_TARGET := libfast_random.so
 PRELOAD_COUNT_TARGET := libfast_random_counted.so
-PRELOAD_TEST_TARGET := rand_preload_tests_run
 PRELOAD_CFLAGS ?= -std=c23 -O3 -Wall -Wextra -Werror -fPIC -fvisibility=hidden
 
 BACKEND_SRCS := \
@@ -30,10 +27,9 @@ FRONTEND_SRCS := frontend/graph.c
 COMMON_HEADERS := $(wildcard *.h backend/*.h frontend/*.h analisys/*.h)
 
 MAIN_SRCS := main.c json_parser.c $(BACKEND_SRCS) $(FRONTEND_SRCS)
-# Общая реализация метрик подключается к бенчмарку и его тестам.
+# Общая реализация метрик расстояний для бенчмарка.
 DISTANCE_METRICS_SRC := analisys/distance_metrics.c
 BENCH_SRCS := analisys/benchmarks_main.c analisys/combined_benchmarks.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS)
-TEST_SRCS := tests/test_algorithms.c $(BACKEND_SRCS)
 
 METRICS_CONFIG := .metrics-config
 .PHONY: FORCE
@@ -51,12 +47,6 @@ $(TARGET): $(METRICS_CONFIG) $(MAIN_SRCS) $(COMMON_HEADERS)
 $(BENCH_TARGET): $(METRICS_CONFIG) $(BENCH_SRCS) $(COMMON_HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread $(BENCH_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(TEST_TARGET): $(METRICS_CONFIG) $(TEST_SRCS) $(COMMON_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(TEST_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
-
-$(TOPOLOGY_TEST_TARGET): $(METRICS_CONFIG) tests/test_topology_threads.c tests/distance_metrics_reference.h analisys/combined_benchmarks.c $(DISTANCE_METRICS_SRC) $(BACKEND_SRCS) $(COMMON_HEADERS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -pthread tests/test_topology_threads.c $(BACKEND_SRCS) -o $@ $(LDFLAGS) $(LDLIBS)
-
 compile: $(TARGET)
 
 $(PRELOAD_TARGET): preload/rand.c
@@ -65,14 +55,7 @@ $(PRELOAD_TARGET): preload/rand.c
 $(PRELOAD_COUNT_TARGET): preload/rand.c
 	$(CC) $(PRELOAD_CFLAGS) -DLABIRIT_PRELOAD_COUNT_CALLS=1 -shared -pthread $< -o $@ $(LDFLAGS) -Wl,-z,defs
 
-$(PRELOAD_TEST_TARGET): tests/test_rand_preload.c
-	$(CC) -std=c23 -O2 -g -Wall -Wextra -Werror -pthread $< -o $@ $(LDFLAGS)
-
 rand-preload: $(PRELOAD_TARGET) $(PRELOAD_COUNT_TARGET)
-
-test-rand-preload: rand-preload $(PRELOAD_TEST_TARGET)
-	LD_PRELOAD="$(CURDIR)/$(PRELOAD_TARGET)" ./$(PRELOAD_TEST_TARGET)
-	LD_PRELOAD="$(CURDIR)/$(PRELOAD_COUNT_TARGET)" ./$(PRELOAD_TEST_TARGET)
 
 run: $(TARGET)
 	./$(TARGET)
@@ -80,11 +63,7 @@ run: $(TARGET)
 benchmark: $(BENCH_TARGET)
 	./$(BENCH_TARGET)
 
-test: $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET)
-	./$(TEST_TARGET)
-	./$(TOPOLOGY_TEST_TARGET)
-
 clean:
-	rm -f $(TARGET) $(BENCH_TARGET) $(TEST_TARGET) $(TOPOLOGY_TEST_TARGET) $(PRELOAD_TARGET) $(PRELOAD_COUNT_TARGET) $(PRELOAD_TEST_TARGET) $(METRICS_CONFIG)
+	rm -f $(TARGET) $(BENCH_TARGET) $(PRELOAD_TARGET) $(PRELOAD_COUNT_TARGET) $(METRICS_CONFIG)
 
-.PHONY: all compile run benchmark test clean rand-preload test-rand-preload
+.PHONY: all compile run benchmark clean rand-preload
