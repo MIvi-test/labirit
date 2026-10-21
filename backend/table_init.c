@@ -1,69 +1,44 @@
 #include "../deter.h"
+#include <limits.h>
+#include <stdint.h>
 
 MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
 {
     LABIRIT_STEPS_DECLARE();
     srand(seed);
-    MazeTable table;
-    table.columns = columns;
-    table.rows = rows;
-    table.seed = seed;
-    table.data = NULL;
-
-    Cell **data = (Cell **)malloc(rows * sizeof(Cell *));
-
-    if (!data)
-    {
-        LABIRIT_STEPS_COMMIT();
+    MazeTable table = {.columns = columns <= INT_MAX ? (int)columns : 0,
+                       .rows = rows <= INT_MAX ? (int)rows : 0,
+                       .seed = (int)seed, .data = NULL};
+    if (!columns || !rows || columns > INT_MAX || rows > INT_MAX ||
+        rows > INT_MAX / columns || sizeof(Cell *) > SIZE_MAX / rows)
         return table;
-    }
-    labirit_metrics_alloc(rows * sizeof(Cell *));
-    for (unsigned int j = 0; j < rows; j++)
-    {
-        Cell *p = (Cell *)malloc(columns * sizeof(Cell));
-        if (!p)
-        {
-            for (unsigned int er = 0; er < j; er++)
-            {
-                free(data[er]);
-                labirit_metrics_free(columns * sizeof(Cell));
-            }
-            free(data);
-            labirit_metrics_free(rows * sizeof(Cell *));
-            LABIRIT_STEPS_COMMIT();
-            return table;
-        }
-        labirit_metrics_alloc(columns * sizeof(Cell));
-        data[j] = p;
-        LABIRIT_STEPS_ADD(columns);
-        for (unsigned int i = 0; i < columns; i++)
-        {
-            Cell obj;
-            obj.all_bits = 0xFF;
-            data[j][i] = obj;
-        }
-    }
+    size_t count = (size_t)columns * rows;
+    size_t pointers = (size_t)rows * sizeof(Cell *);
+    if (count > (SIZE_MAX - pointers) / sizeof(Cell))
+        return table;
+    size_t bytes = pointers + count * sizeof(Cell);
+    Cell **data = malloc(bytes);
+    if (!data)
+        return table;
+    /* This allocation owns both the row pointers and all cells. */
+    Cell *cells = (Cell *)((unsigned char *)data + pointers);
+    for (unsigned int y = 0; y < rows; y++)
+        data[y] = cells + (size_t)y * columns;
+    memset(cells, 0xFF, count * sizeof(Cell));
+    labirit_metrics_alloc(bytes);
+    LABIRIT_STEPS_ADD(count);
     table.data = data;
-
     LABIRIT_STEPS_COMMIT();
-
     return table;
 }
 
 void clear_table(MazeTable *table)
 {
     if (!table || !table->data)
-    {
         return;
-    }
-
-    for (int j = 0; j < table->rows; j++)
-    {
-        free(table->data[j]);
-        labirit_metrics_free((size_t)table->columns * sizeof(Cell));
-    }
+    size_t bytes = (size_t)table->rows * sizeof(Cell *) +
+                   (size_t)table->rows * table->columns * sizeof(Cell);
     free(table->data);
-    labirit_metrics_free((size_t)table->rows * sizeof(Cell *));
+    labirit_metrics_free(bytes);
     table->data = NULL;
-    return;
 }
