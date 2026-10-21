@@ -22,6 +22,7 @@ typedef union
 
 typedef struct
 {
+    /* Owned by init_table/clear_table: row pointers and cells share one allocation. */
     Cell **data;
     int rows;
     int columns;
