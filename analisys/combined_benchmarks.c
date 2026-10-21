@@ -682,9 +682,13 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 	labirit_metrics_reset_steps();
 	long long started = now_microseconds();
 	if (generator == recursive_division_algorithm)
-        recursive_division_prepared(table);
-    else
-        generator(table);
+	{
+	    recursive_division_prepared(table);
+	}
+	else
+	{
+	    generator(table);
+	}
 	long long finished = now_microseconds();
 	MazeGenerationMetrics metrics = labirit_metrics_snapshot();
 
@@ -867,9 +871,13 @@ static bool write_example_maze(FILE *out, const char *algorithm,
 	}
 
 	if (generator == recursive_division_algorithm)
-        recursive_division_prepared(table);
-    else
-        generator(table);
+	{
+	    recursive_division_prepared(table);
+	}
+	else
+	{
+	    generator(table);
+	}
 
 	bool ok =
 		fprintf(

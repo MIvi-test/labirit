@@ -31,9 +31,13 @@ static bool run_case(FILE *out, Generator generator, int columns, int rows, int 
 
     long long started = now_microseconds();
     if (generator == recursive_division_algorithm)
-                recursive_division_prepared(table);
-            else
-                generator(table);
+    {
+        recursive_division_prepared(table);
+    }
+    else
+    {
+        generator(table);
+    }
     long long finished = now_microseconds();
 
     TimeBenchmarkRow row;
