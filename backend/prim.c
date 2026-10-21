@@ -158,46 +158,53 @@ void prim_alg(MazeTable table)
     }
     labirit_metrics_alloc(visited_bytes);
     add_visit(0, 0);
-    add_bind(0, 0, 0, 1);
-    add_bind(0, 0, 1, 0);
-    do
+    if (table.rows > 1 && !add_bind(0, 0, 0, 1))
+        goto cleanup;
+    if (table.columns > 1 && !add_bind(0, 0, 1, 0))
+        goto cleanup;
+    while (GLOBAL_BIND_PTR)
     {
         LABIRIT_STEPS_ADD(1);
         massive bind = pop_bind();
-        if (!in_visited(bind.x2, bind.y2))
-        {
-            remove_wall(table, bind);
-            add_visit(bind.x2, bind.y2);
-        }
+        if (in_visited(bind.x2, bind.y2))
+            continue;
+        remove_wall(table, bind);
+        add_visit(bind.x2, bind.y2);
         if (bind.x2 > 0)
         {
             if (!in_visited(bind.x2 - 1, bind.y2))
             {
-                add_bind(bind.x2, bind.y2, bind.x2 - 1, bind.y2);
+                if (!add_bind(bind.x2, bind.y2, bind.x2 - 1, bind.y2))
+                    goto cleanup;
             }
         }
         if (bind.x2 < table.columns - 1)
         {
             if (!in_visited(bind.x2 + 1, bind.y2))
             {
-                add_bind(bind.x2, bind.y2, bind.x2 + 1, bind.y2);
+                if (!add_bind(bind.x2, bind.y2, bind.x2 + 1, bind.y2))
+                    goto cleanup;
             }
         }
         if (bind.y2 > 0)
         {
             if (!in_visited(bind.x2, bind.y2 - 1))
             {
-                add_bind(bind.x2, bind.y2, bind.x2, bind.y2 - 1);
+                if (!add_bind(bind.x2, bind.y2, bind.x2, bind.y2 - 1))
+                    goto cleanup;
             }
         }
         if (bind.y2 < table.rows - 1)
         {
             if (!in_visited(bind.x2, bind.y2 + 1))
             {
-                add_bind(bind.x2, bind.y2, bind.x2, bind.y2 + 1);
+                if (!add_bind(bind.x2, bind.y2, bind.x2, bind.y2 + 1))
+                    goto cleanup;
             }
         }
-    } while (GLOBAL_BIND_PTR);
+    }
+
+cleanup:
 
     destroy_Bind();
     destroy_Visited();
