@@ -1,5 +1,6 @@
 #include "../deter.h"
 #include <limits.h>
+#include <stdint.h>
 
 typedef struct massive
 {
@@ -9,87 +10,48 @@ typedef struct massive
     int y2;
 } massive;
 
-typedef struct BIND
+typedef struct
 {
-    massive bind;
-    struct BIND *before;
-} Bind;
-
-Bind *GLOBAL_BIND_PTR = NULL;
+    massive *edges;
+    size_t count;
+    size_t capacity;
+} Frontier;
 
 static unsigned char *visited;
 static int visited_columns;
 static size_t visited_bytes;
 
-static void destroy_Bind(void)
+static void destroy_Bind(Frontier *frontier)
 {
-    while (GLOBAL_BIND_PTR)
-    {
-        Bind *temp = GLOBAL_BIND_PTR->before;
-        free(GLOBAL_BIND_PTR);
-        labirit_metrics_free(sizeof(Bind));
-        GLOBAL_BIND_PTR = temp;
-    }
+    free(frontier->edges);
+    labirit_metrics_free(frontier->capacity * sizeof(massive));
 }
 
-bool add_bind(int x1, int y1, int x2, int y2)
+static bool add_bind(Frontier *frontier, int x1, int y1, int x2, int y2)
 {
-    Bind *new_element = (Bind *)malloc(sizeof(Bind));
-    if (!new_element)
+    if (frontier->count == frontier->capacity)
     {
-        return false;
+        size_t capacity = frontier->capacity ? frontier->capacity * 2 : 64;
+        if (capacity < frontier->capacity || capacity > SIZE_MAX / sizeof(massive))
+            return false;
+        massive *edges = realloc(frontier->edges, capacity * sizeof(massive));
+        if (!edges)
+            return false;
+        labirit_metrics_alloc(capacity * sizeof(massive));
+        labirit_metrics_free(frontier->capacity * sizeof(massive));
+        frontier->edges = edges;
+        frontier->capacity = capacity;
     }
-    labirit_metrics_alloc(sizeof(Bind));
-    new_element->before = GLOBAL_BIND_PTR;
-    GLOBAL_BIND_PTR = new_element;
-    new_element->bind.x1 = x1;
-    new_element->bind.y1 = y1;
-    new_element->bind.x2 = x2;
-    new_element->bind.y2 = y2;
+    frontier->edges[frontier->count++] = (massive){x1, y1, x2, y2};
     return true;
 }
 
-massive pop_bind()
+static massive pop_bind(Frontier *frontier)
 {
-    LABIRIT_STEPS_DECLARE();
-    massive r;
-    {
-        r.x1 = 0;
-        r.y1 = 0;
-        r.x2 = 0;
-        r.y2 = 0;
-    }
-    if (!GLOBAL_BIND_PTR)
-    {
-        LABIRIT_STEPS_COMMIT();
-        return r;
-    }
-
-    Bind *prev = NULL;
-    Bind *node = GLOBAL_BIND_PTR;
-
-    while (node->before != NULL && (rand() % 4) != 0)
-    {
-        LABIRIT_STEPS_ADD(1);
-        prev = node;
-        node = node->before;
-    }
-
-    r = node->bind;
-
-    if (prev == NULL)
-    {
-        GLOBAL_BIND_PTR = node->before;
-    }
-    else
-    {
-        prev->before = node->before;
-    }
-
-    free(node);
-    labirit_metrics_free(sizeof(Bind));
-    LABIRIT_STEPS_COMMIT();
-    return r;
+    size_t index = (size_t)rand() % frontier->count;
+    massive edge = frontier->edges[index];
+    frontier->edges[index] = frontier->edges[--frontier->count];
+    return edge;
 }
 
 static bool add_visit(int x, int y)
@@ -138,7 +100,7 @@ void remove_wall(MazeTable table, massive bind)
 void prim_alg(MazeTable table)
 {
     LABIRIT_STEPS_DECLARE();
-    destroy_Bind();
+    Frontier frontier = {0};
     destroy_Visited();
 
     if (!table.data || table.rows <= 0 || table.columns <= 0 ||
@@ -158,14 +120,14 @@ void prim_alg(MazeTable table)
     }
     labirit_metrics_alloc(visited_bytes);
     add_visit(0, 0);
-    if (table.rows > 1 && !add_bind(0, 0, 0, 1))
+    if (table.rows > 1 && !add_bind(&frontier, 0, 0, 0, 1))
         goto cleanup;
-    if (table.columns > 1 && !add_bind(0, 0, 1, 0))
+    if (table.columns > 1 && !add_bind(&frontier, 0, 0, 1, 0))
         goto cleanup;
-    while (GLOBAL_BIND_PTR)
+    while (frontier.count)
     {
         LABIRIT_STEPS_ADD(1);
-        massive bind = pop_bind();
+        massive bind = pop_bind(&frontier);
         if (in_visited(bind.x2, bind.y2))
             continue;
         remove_wall(table, bind);
@@ -174,7 +136,7 @@ void prim_alg(MazeTable table)
         {
             if (!in_visited(bind.x2 - 1, bind.y2))
             {
-                if (!add_bind(bind.x2, bind.y2, bind.x2 - 1, bind.y2))
+                if (!add_bind(&frontier, bind.x2, bind.y2, bind.x2 - 1, bind.y2))
                     goto cleanup;
             }
         }
@@ -182,7 +144,7 @@ void prim_alg(MazeTable table)
         {
             if (!in_visited(bind.x2 + 1, bind.y2))
             {
-                if (!add_bind(bind.x2, bind.y2, bind.x2 + 1, bind.y2))
+                if (!add_bind(&frontier, bind.x2, bind.y2, bind.x2 + 1, bind.y2))
                     goto cleanup;
             }
         }
@@ -190,7 +152,7 @@ void prim_alg(MazeTable table)
         {
             if (!in_visited(bind.x2, bind.y2 - 1))
             {
-                if (!add_bind(bind.x2, bind.y2, bind.x2, bind.y2 - 1))
+                if (!add_bind(&frontier, bind.x2, bind.y2, bind.x2, bind.y2 - 1))
                     goto cleanup;
             }
         }
@@ -198,7 +160,7 @@ void prim_alg(MazeTable table)
         {
             if (!in_visited(bind.x2, bind.y2 + 1))
             {
-                if (!add_bind(bind.x2, bind.y2, bind.x2, bind.y2 + 1))
+                if (!add_bind(&frontier, bind.x2, bind.y2, bind.x2, bind.y2 + 1))
                     goto cleanup;
             }
         }
@@ -206,7 +168,7 @@ void prim_alg(MazeTable table)
 
 cleanup:
 
-    destroy_Bind();
+    destroy_Bind(&frontier);
     destroy_Visited();
     LABIRIT_STEPS_COMMIT();
     return;
