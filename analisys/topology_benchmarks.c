@@ -243,9 +243,13 @@ static bool benchmark_topology_one(const char *path, Generator generator,
             }
 
             if (generator == recursive_division_algorithm)
+            {
                 recursive_division_prepared(table);
+            }
             else
+            {
                 generator(table);
+            }
             TopologyReport report;
             if (!analyze_topology(table, &report, columns, rows, seed))
             {
