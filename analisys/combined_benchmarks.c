@@ -671,7 +671,9 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 							  int rows, int seed, bool is_first)
 {
 	labirit_metrics_reset();
-	MazeTable table = init_table(columns, rows, seed);
+	MazeTable table = generator == recursive_division_algorithm
+                          ? init_table_open(columns, rows, seed)
+                          : init_table(columns, rows, seed);
 	if (!table.data)
 	{
 		return false;
@@ -679,7 +681,10 @@ static bool run_case_combined(FILE *out, Generator generator, int columns,
 
 	labirit_metrics_reset_steps();
 	long long started = now_microseconds();
-	generator(table);
+	if (generator == recursive_division_algorithm)
+        recursive_division_prepared(table);
+    else
+        generator(table);
 	long long finished = now_microseconds();
 	MazeGenerationMetrics metrics = labirit_metrics_snapshot();
 
@@ -853,13 +858,18 @@ static bool write_example_maze(FILE *out, const char *algorithm,
 	int seed = 101;
 
 	labirit_metrics_reset();
-	MazeTable table = init_table(columns, rows, seed);
+	MazeTable table = generator == recursive_division_algorithm
+                          ? init_table_open(columns, rows, seed)
+                          : init_table(columns, rows, seed);
 	if (!table.data)
 	{
 		return false;
 	}
 
-	generator(table);
+	if (generator == recursive_division_algorithm)
+        recursive_division_prepared(table);
+    else
+        generator(table);
 
 	bool ok =
 		fprintf(

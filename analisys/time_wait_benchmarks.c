@@ -21,14 +21,19 @@ static long long now_microseconds(void)
 
 static bool run_case(FILE *out, Generator generator, int columns, int rows, int seed, bool is_first)
 {
-    MazeTable table = init_table(columns, rows, seed);
+    MazeTable table = generator == recursive_division_algorithm
+                                  ? init_table_open(columns, rows, seed)
+                                  : init_table(columns, rows, seed);
     if (!table.data)
     {
         return false;
     }
 
     long long started = now_microseconds();
-    generator(table);
+    if (generator == recursive_division_algorithm)
+                recursive_division_prepared(table);
+            else
+                generator(table);
     long long finished = now_microseconds();
 
     TimeBenchmarkRow row;

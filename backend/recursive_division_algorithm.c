@@ -101,3 +101,10 @@ void recursive_division_algorithm(MazeTable table)
     divide(0, 0, table.columns, table.rows, table);
     return;
 }
+
+/* The caller must supply a freshly initialized open-interior grid. */
+void recursive_division_prepared(MazeTable table)
+{
+    if (table.data && table.columns > 0 && table.rows > 0)
+        divide(0, 0, table.columns, table.rows, table);
+}

@@ -175,14 +175,22 @@ void print_maze(TABLE table)
 
 int run_maze(int columns, int rows, unsigned int seed, MazeAlgorithm algorithm)
 {
-    TABLE table = init_table((unsigned int)columns, (unsigned int)rows, seed);
+    TABLE table = algorithm == MAZE_ALGO_RECURSIVE_DIVISION
+                      ? init_table_open((unsigned int)columns, (unsigned int)rows, seed)
+                      : init_table((unsigned int)columns, (unsigned int)rows, seed);
     if (!table.data)
     {
         fprintf(stderr, "Failed to allocate maze table\n");
         return 1;
     }
 
-    maze_run_algorithm(table, algorithm);
+    if (algorithm == MAZE_ALGO_RECURSIVE_DIVISION)
+    {
+        recursive_division_prepared(table);
+        maze_add_entrance_exit(table);
+    }
+    else
+        maze_run_algorithm(table, algorithm);
     print_maze_info(table, algorithm);
     print_maze(table);
     clear_table(&table);
