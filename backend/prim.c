@@ -1,4 +1,5 @@
 #include "../deter.h"
+#include <limits.h>
 
 typedef struct massive
 {
@@ -16,14 +17,9 @@ typedef struct BIND
 
 Bind *GLOBAL_BIND_PTR = NULL;
 
-typedef struct VISITED
-{
-    int x;
-    int y;
-    struct VISITED *before;
-} Visited;
-
-Visited *GLOBAL_VISITED_PTR = NULL;
+static unsigned char *visited;
+static int visited_columns;
+static size_t visited_bytes;
 
 static void destroy_Bind(void)
 {
@@ -96,48 +92,23 @@ massive pop_bind()
     return r;
 }
 
-bool add_visit(int x, int y)
+static bool add_visit(int x, int y)
 {
-    Visited *new_element = (Visited *)malloc(sizeof(Visited));
-    if (!new_element)
-    {
-        return false;
-    }
-    labirit_metrics_alloc(sizeof(Visited));
-    new_element->x = x;
-    new_element->y = y;
-    new_element->before = GLOBAL_VISITED_PTR;
-    GLOBAL_VISITED_PTR = new_element;
+    visited[(size_t)y * visited_columns + x] = 1;
     return true;
 }
 
-void destroy_Visited()
+static void destroy_Visited(void)
 {
-    while (GLOBAL_VISITED_PTR)
-    {
-        Visited *temp = GLOBAL_VISITED_PTR->before;
-        free(GLOBAL_VISITED_PTR);
-        labirit_metrics_free(sizeof(Visited));
-        GLOBAL_VISITED_PTR = temp;
-    }
+    free(visited);
+    labirit_metrics_free(visited_bytes);
+    visited = NULL;
+    visited_bytes = 0;
 }
 
-bool in_visited(int x, int y)
+static bool in_visited(int x, int y)
 {
-    LABIRIT_STEPS_DECLARE();
-    Visited *cur = GLOBAL_VISITED_PTR;
-    while (cur)
-    {
-        LABIRIT_STEPS_ADD(1);
-        if (cur->x == x && cur->y == y)
-        {
-            LABIRIT_STEPS_COMMIT();
-            return true;
-        }
-        cur = cur->before;
-    }
-    LABIRIT_STEPS_COMMIT();
-    return false;
+    return visited[(size_t)y * visited_columns + x] != 0;
 }
 
 void remove_wall(MazeTable table, massive bind)
@@ -170,6 +141,22 @@ void prim_alg(MazeTable table)
     destroy_Bind();
     destroy_Visited();
 
+    if (!table.data || table.rows <= 0 || table.columns <= 0 ||
+        table.rows > INT_MAX / table.columns)
+    {
+        LABIRIT_STEPS_COMMIT();
+        return;
+    }
+    visited_columns = table.columns;
+    visited_bytes = (size_t)table.rows * table.columns;
+    visited = calloc(visited_bytes, 1);
+    if (!visited)
+    {
+        visited_bytes = 0;
+        LABIRIT_STEPS_COMMIT();
+        return;
+    }
+    labirit_metrics_alloc(visited_bytes);
     add_visit(0, 0);
     add_bind(0, 0, 0, 1);
     add_bind(0, 0, 1, 0);
