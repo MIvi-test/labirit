@@ -2,7 +2,7 @@
 #include <limits.h>
 #include <stdint.h>
 
-MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
+static MazeTable init_table_mode(unsigned int columns, unsigned int rows, unsigned int seed, bool open)
 {
     LABIRIT_STEPS_DECLARE();
     srand(seed);
@@ -24,12 +24,40 @@ MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
     Cell *cells = (Cell *)((unsigned char *)data + pointers);
     for (unsigned int y = 0; y < rows; y++)
         data[y] = cells + (size_t)y * columns;
-    memset(cells, 0xFF, count * sizeof(Cell));
+    Cell fill = {.all_bits = 0xFF};
+    if (open)
+    {
+        fill.wall.top = fill.wall.right = fill.wall.bottom = fill.wall.left = 0;
+    }
+    memset(cells, fill.all_bits, count * sizeof(Cell));
+    if (open)
+    {
+        for (unsigned int x = 0; x < columns; x++)
+        {
+            data[0][x].wall.top = 1;
+            data[rows - 1][x].wall.bottom = 1;
+        }
+        for (unsigned int y = 0; y < rows; y++)
+        {
+            data[y][0].wall.left = 1;
+            data[y][columns - 1].wall.right = 1;
+        }
+    }
     labirit_metrics_alloc(bytes);
     LABIRIT_STEPS_ADD(count);
     table.data = data;
     LABIRIT_STEPS_COMMIT();
     return table;
+}
+
+MazeTable init_table(unsigned int columns, unsigned int rows, unsigned int seed)
+{
+    return init_table_mode(columns, rows, seed, false);
+}
+
+MazeTable init_table_open(unsigned int columns, unsigned int rows, unsigned int seed)
+{
+    return init_table_mode(columns, rows, seed, true);
 }
 
 void clear_table(MazeTable *table)

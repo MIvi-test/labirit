@@ -233,14 +233,19 @@ static bool benchmark_topology_one(const char *path, Generator generator,
             int columns = sizes[i].columns;
             int rows = sizes[i].rows;
             int seed = seeds[s];
-            MazeTable table = init_table(columns, rows, seed);
+            MazeTable table = generator == recursive_division_algorithm
+                                  ? init_table_open(columns, rows, seed)
+                                  : init_table(columns, rows, seed);
             if (!table.data)
             {
                 fclose(out);
                 return false;
             }
 
-            generator(table);
+            if (generator == recursive_division_algorithm)
+                recursive_division_prepared(table);
+            else
+                generator(table);
             TopologyReport report;
             if (!analyze_topology(table, &report, columns, rows, seed))
             {
